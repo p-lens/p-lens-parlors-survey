@@ -57,8 +57,20 @@ describe("issueOf", () => {
     const issue = issueOf(added, aedSchema, japanese)
     expect(issue.body).toContain(japanese.consentStatement)
     expect(issue.body).toContain(osmNoteOf(added, aedSchema, japanese))
-    const geojson = issue.body.split("```geojson\n")[1]?.split("\n```")[0] ?? ""
+    const geojson = issue.body.split("```json\n")[1]?.split("\n```")[0] ?? ""
     expect(JSON.parse(geojson)).toEqual(JSON.parse(JSON.stringify(featureOf(added))))
+  })
+
+  test("draws a map with the streets around a placed thing in view, and none for a report that places nothing", () => {
+    const map = JSON.parse(issueOf(added, aedSchema, japanese).body.split("```geojson\n")[1]?.split("\n```")[0] ?? "{}") as { features: { geometry: { type: string; coordinates: unknown } }[] }
+    expect(map.features[0]?.geometry).toEqual({ type: "Point", coordinates: [135.4981, 34.7041235] })
+    expect(map.features[1]?.geometry.type).toBe("LineString")
+    const ring = map.features[1]?.geometry.coordinates as [number, number][]
+    expect(ring[0]).toEqual(ring[ring.length - 1] as [number, number])
+    const metres = ring.map(([longitude, latitude]) => Math.hypot((longitude - 135.4981) * 111_320 * Math.cos((34.7041235 * Math.PI) / 180), (latitude - 34.7041235) * 111_320))
+    expect(Math.min(...metres)).toBeGreaterThan(299)
+    expect(Math.max(...metres)).toBeLessThan(301)
+    expect(issueOf(gone, aedSchema, japanese).body).not.toContain("```geojson")
   })
 
   test("keeps what was typed from breaking the table", () => {

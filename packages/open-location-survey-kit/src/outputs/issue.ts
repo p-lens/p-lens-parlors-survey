@@ -1,7 +1,7 @@
 import type { SurveySchema } from "../core/schema"
 import type { Words } from "../core/words"
 import { recordLines, subjectName } from "./describe"
-import { featureOf } from "./geojson"
+import { featureOf, surroundingsOf } from "./geojson"
 import { osmNoteOf } from "./osm-note"
 import type { SurveyRecord } from "./record"
 
@@ -36,12 +36,22 @@ const fenced = (language: string, text: string): readonly string[] => {
   return [fence + language, text, fence]
 }
 
+/**
+ * The map GitHub draws for a report that places something, with the streets
+ * around the position in view; nothing for a report that places nothing.
+ */
+const mapOf = (record: SurveyRecord): readonly string[] => {
+  const surroundings = surroundingsOf(record)
+  return surroundings === undefined ? [] : [...fenced("geojson", JSON.stringify(surroundings)), ""]
+}
+
 /** A title on one line and no longer than an issue's may be. */
 const titleOf = (text: string): string => [...text.replace(/\s+/g, " ").trim()].slice(0, LONGEST_TITLE).join("")
 
 /**
- * The issue a record is filed as: a table to review at a glance, the text of
- * an OpenStreetMap note, and the record as GeoJSON for whatever merges it.
+ * The issue a record is filed as: a table to review at a glance, a map of
+ * where it was placed, the text of an OpenStreetMap note, and the record as a
+ * GeoJSON Feature for whatever merges it.
  * Labels are the survey's own words; every value is something a person sent,
  * and is written where it can only be shown.
  * Labelled by survey and kind, so a repository can hold several surveys.
@@ -57,6 +67,7 @@ export const issueOf = (record: SurveyRecord, schema: SurveySchema, words: Words
     "",
     words.consentStatement,
     "",
+    ...mapOf(record),
     "<details>",
     `<summary>${words.osmNoteHeading}</summary>`,
     "",
@@ -64,7 +75,7 @@ export const issueOf = (record: SurveyRecord, schema: SurveySchema, words: Words
     "",
     "</details>",
     "",
-    ...fenced("geojson", JSON.stringify(featureOf(record), null, 2)),
+    ...fenced("json", JSON.stringify(featureOf(record), null, 2)),
   ].join("\n"),
   labels: ["survey", schema.id, record.observation.kind],
 })
