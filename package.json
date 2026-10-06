@@ -1,0 +1,20 @@
+{
+  "name": "p-lens-parlors-survey",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "bun --cwd=apps/web run dev",
+    "dev:api": "bun --cwd=apps/api run dev",
+    "build": "bun --cwd=apps/web run build",
+    "deploy": "bun run build && bun --cwd=apps/api run deploy",
+    "test": "bun --cwd=packages/open-location-survey-kit run test && bun --cwd=packages/parlor-schema run test && bun --cwd=apps/api run test",
+    "check": "bun --cwd=packages/open-location-survey-kit run check && bun --cwd=packages/parlor-schema run check && bun --cwd=apps/api run check && bun --cwd=apps/web run check"
+  },
+  "overrides": {
+    "seroval": "^1.6.8",
+    "seroval-plugins": "^1.6.8"
+  }
+}

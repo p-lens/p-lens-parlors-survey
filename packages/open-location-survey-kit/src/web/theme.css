@@ -1,0 +1,127 @@
+@import "tailwindcss";
+
+@source "./";
+
+/*
+ * Every colour a survey page shows is one of these tokens: a component names
+ * what a colour is for, never the colour, so the light and dark themes are two
+ * sets of values and nothing else. A survey may override any of them.
+ */
+:root {
+  color-scheme: light;
+  --surface-0: #e3e5e8;
+  --surface-1: #f2f3f5;
+  --surface-2: #ffffff;
+  --surface-3: #ebedef;
+  --surface-input: #e3e5e8;
+  --text-primary: #060607;
+  --text-secondary: #4e5058;
+  --text-muted: #5c5e66;
+  --border: #d4d6da;
+  --accent: #5865f2;
+  --accent-hover: #4752c4;
+  --accent-contrast: #ffffff;
+  --positive: #248046;
+  --negative: #da373c;
+  --warning: #a8650a;
+  --focus-ring: #00a8fc;
+  --pin: #da373c;
+  --pin-selected: #5865f2;
+  --pin-outline: #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --surface-0: #1e1f22;
+    --surface-1: #2b2d31;
+    --surface-2: #313338;
+    --surface-3: #383a40;
+    --surface-input: #1e1f22;
+    --text-primary: #f2f3f5;
+    --text-secondary: #b5bac1;
+    --text-muted: #949ba4;
+    --border: #3f4147;
+    --accent: #5865f2;
+    --accent-hover: #4752c4;
+    --accent-contrast: #ffffff;
+    --positive: #23a55a;
+    --negative: #f23f43;
+    --warning: #f0b232;
+    --focus-ring: #00a8fc;
+    --pin: #f23f43;
+    --pin-selected: #8891f7;
+    --pin-outline: #ffffff;
+  }
+}
+
+@theme inline {
+  --color-surface-0: var(--surface-0);
+  --color-surface-1: var(--surface-1);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-surface-input: var(--surface-input);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-contrast: var(--accent-contrast);
+  --color-positive: var(--positive);
+  --color-negative: var(--negative);
+  --color-warning: var(--warning);
+  --color-focus-ring: var(--focus-ring);
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  background: var(--surface-2);
+  color: var(--text-primary);
+  font-family: system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif;
+}
+
+/*
+ * Scrollbars are a thin rounded thumb with no track and no arrows, so a list
+ * that scrolls does not carry a column of chrome down its side. Engines that
+ * style them by pseudo-element get that; the rest get the standard thin one.
+ */
+:root {
+  --scrollbar-thumb: color-mix(in srgb, var(--text-muted) 45%, transparent);
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  border-radius: 3px;
+  background: var(--scrollbar-thumb);
+}
+
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
+  }
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/*
+ * The map's bottom-right corner belongs to the buttons floating over it, so
+ * the attribution in the bottom-left wraps short of them instead of under them.
+ */
+.maplibregl-ctrl-bottom-left {
+  right: 5rem;
+}

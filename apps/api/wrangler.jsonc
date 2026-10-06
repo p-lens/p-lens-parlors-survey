@@ -1,0 +1,30 @@
+{
+  // survey.p-lens.jp: the built web app as static assets, and /api/* in front
+  // of them. A submission taken is filed as a GitHub issue on the parlor
+  // list's repository by a GitHub App; nothing is stored here.
+  "name": "p-lens-parlors-survey",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-01",
+  "routes": [{ "pattern": "survey.p-lens.jp", "custom_domain": true }],
+  "assets": {
+    "directory": "../web/dist",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  // How many reports one sender, told apart by address, may make: every
+  // report reads the list and files a public issue, so nobody's script gets
+  // to do that without end.
+  "ratelimits": [{ "name": "REPORT_LIMITER", "namespace_id": "1001", "simple": { "limit": 10, "period": 60 } }],
+  "vars": {
+    // owner/name of the parlor list's repository, where issues are filed.
+    "GITHUB_REPO": "p-lens/p-lens-parlors",
+    "GITHUB_APP_ID": "5211278",
+    "GITHUB_INSTALLATION_ID": "168517546",
+    // Where the parlor list's JSONL is published, ending in a slash
+    // (https://parlors.p-lens.jp/). A report naming a parlor as one already
+    // listed is refused; left empty, reports are judged without the list.
+    "LIST_URL": "https://parlors.p-lens.jp/"
+  }
+  // Secrets (wrangler secret put): GITHUB_APP_PRIVATE_KEY (PKCS#8 PEM),
+  // TURNSTILE_SECRET (needed: until it is set, no report is taken).
+}

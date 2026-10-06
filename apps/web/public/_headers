@@ -1,0 +1,16 @@
+# What every page and file is sent with. Cloudflare reads this file from the
+# built site.
+#
+# The policy names every place the page may load from, so a script, frame or
+# request to anywhere else is refused by the browser: the page's own files,
+# Cloudflare Turnstile, the map's tiles (地理院タイル), the published list,
+# and Cloudflare Web Analytics, which counts page views without cookies. A
+# fork that reads its list or its tiles from elsewhere names them in
+# connect-src, and one that counts nothing takes the two cloudflareinsights
+# addresses out.
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://challenges.cloudflare.com https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://cyberjapandata.gsi.go.jp https://parlors.p-lens.jp https://cloudflareinsights.com; worker-src 'self' blob:; frame-src https://challenges.cloudflare.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: geolocation=(self), camera=(), microphone=(), payment=()

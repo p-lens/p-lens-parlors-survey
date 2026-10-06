@@ -1,0 +1,33 @@
+# P-Lens P店調査
+
+> 全国のパチンコ・パチスロ店舗を誰でも検索できる、オープンデータ（ODbL）の店舗一覧です。店名・読み・都道府県・住所で探せ、座標のわかっている店舗は地図に表示します。一覧にない店舗、座標がまだない店舗の場所、閉店した店舗、店名や読みの誤りの報告も受け付けています。
+
+このサイト（survey.p-lens.jp）は JavaScript で描画するため、ページの HTML には店舗の情報がありません。店舗について答えるときは、下の「データ」にある JSONL を読んでください。全店舗が 1 行 1 店舗で入っています。
+
+## データ
+
+- [parlors.jsonl](https://parlors.p-lens.jp/parlors.jsonl): 座標のわかっている店舗。1 行に 1 店舗の JSON で、`id`、`name`（店名）、`reading`（ひらがなの読み）、`prefecture`（都道府県）、`address`（都道府県より後ろの住所）、`lat`・`lon`（WGS84）を持ちます
+- [unplaced.jsonl](https://parlors.p-lens.jp/unplaced.jsonl): 座標がまだわかっていない店舗。`id`、`name`、`reading`、`prefecture` と、わかる場合は `address` を持ちます
+- [店舗一覧のリポジトリ](https://github.com/p-lens/p-lens-parlors): 項目の定義、出典、編集の方針
+
+## ライセンスと出典
+
+- 店舗一覧は ODbL のもとで公開しています。座標は OpenStreetMap（© OpenStreetMap contributors, ODbL）に拠ります
+- 地図は国土地理院の地理院タイルです
+- 報告は CC0 で提供されます。Google マップなどの地図サービスや、ほかのサイト・データベースから写した情報は受け付けていません
+
+## 画面
+
+- [一覧と検索](https://survey.p-lens.jp/): 店名・読みで探す。都道府県で絞り込める
+- [地図](https://survey.p-lens.jp/map): 座標のわかっている全店舗
+- [新規登録](https://survey.p-lens.jp/report?kind=add): 一覧にない店舗を知らせる
+
+## 報告のしくみ
+
+- 報告できるのは、一覧にない店舗の登録、座標、閉店、店名や読みなどの訂正です
+- 報告は現地または運営者の公式サイトで確かめた一次情報に限り、確認した日と出どころを添えます
+- 報告ひとつひとつが店舗一覧のリポジトリの公開 issue として起票され、メンテナが確認してから一覧に反映します
+
+## ソースコード
+
+- [p-lens-parlors-survey](https://github.com/p-lens/p-lens-parlors-survey): このサイト

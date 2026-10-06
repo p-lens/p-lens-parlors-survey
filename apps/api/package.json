@@ -1,0 +1,22 @@
+{
+  "name": "@p-lens-survey/api",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "check": "tsc --noEmit -p .",
+    "test": "bun test tests"
+  },
+  "dependencies": {
+    "@p-lens-survey/parlor-schema": "workspace:*",
+    "open-location-survey-kit": "workspace:*"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261005.1",
+    "@types/bun": "^1.3.14",
+    "typescript": "~6.0.2",
+    "wrangler": "^4.147.0"
+  }
+}
