@@ -80,7 +80,11 @@ describe("readEnvelope", () => {
 
   test("takes an observation from the last year, not the future", () => {
     expect(readEnvelope(envelope(ADD, { observedOn: "2026-10-05" }), JUDGING).ok).toBe(true)
-    for (const observedOn of ["2026-10-06", "2025-09-01", "2026-02-30x"]) expect(readEnvelope(envelope(ADD, { observedOn }), JUDGING).ok).toBe(false)
+    for (const observedOn of ["2026-10-07", "2025-09-01", "2026-02-30x"]) expect(readEnvelope(envelope(ADD, { observedOn }), JUDGING).ok).toBe(false)
+  })
+
+  test("takes the day that is already tomorrow where the person stands, east of the server's UTC day", () => {
+    expect(readEnvelope(envelope(ADD, { observedOn: "2026-10-06" }), JUDGING).ok).toBe(true)
   })
 
   test("refuses a contributor that is not a UUID", () => {

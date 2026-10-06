@@ -74,6 +74,15 @@ const DAY = /^\d{4}-\d{2}-\d{2}$/
 const LONGEST_NOTE = 500
 const LONGEST_REF = 300
 const OLDEST_OBSERVATION_DAYS = 366
+
+/**
+ * How far past the server's today a day may be. The server's today is the
+ * day in UTC, and the person's is the day where they stand: east of
+ * Greenwich it is already tomorrow for the hours before UTC catches up, nine
+ * of them in Japan. A day one ahead is therefore today for somebody, and only
+ * a day further off than that is in the future for everyone.
+ */
+const DAYS_AHEAD_OF_UTC = 1
 const DEGREE_PRECISION = 1e7
 
 const textOf = (value: unknown): string => (typeof value === "string" ? value.trim() : "")
@@ -133,7 +142,7 @@ const observedOnOf = (value: unknown, today: string): Result<string, Problem> =>
   const day = textOf(value)
   if (day === "") return Err({ field: "observedOn", reason: "required" })
   const gap = DAY.test(day) && !Number.isNaN(Date.parse(day)) ? daysBetween(day, today) : Number.NaN
-  return gap >= 0 && gap <= OLDEST_OBSERVATION_DAYS ? Ok(day) : Err({ field: "observedOn", reason: "invalid" })
+  return gap >= -DAYS_AHEAD_OF_UTC && gap <= OLDEST_OBSERVATION_DAYS ? Ok(day) : Err({ field: "observedOn", reason: "invalid" })
 }
 
 const contributorOf = (value: unknown): Result<string, Problem> => (UUID.test(textOf(value)) ? Ok(textOf(value)) : Err({ field: "contributor", reason: "invalid" }))
