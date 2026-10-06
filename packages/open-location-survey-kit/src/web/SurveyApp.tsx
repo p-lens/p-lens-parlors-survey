@@ -321,7 +321,7 @@ const Survey = (props: { readonly config: SurveyConfig; readonly list: SurveyLis
           fallback={<MapButtons words={config.words} onLocate={() => locate(AROUND_ZOOM)} onAdd={config.schema.observations.includes("add") ? () => report("add", undefined) : undefined} />}
         >
           {(current) => (
-            <div class="absolute bottom-3 right-3 z-10 w-80 max-w-[calc(100%-1.5rem)] rounded-xl border border-border bg-surface-1 p-4 shadow-lg">
+            <div class="absolute bottom-3 right-3 z-10 w-80 max-w-[calc(100%-1.5rem)] rounded-xl border border-border bg-surface-1 px-2.5 pb-2.5 pt-1.5 shadow-lg">
               <PlacingPanel words={config.words} onLocate={() => locate(PLACING_ZOOM)} onDecide={() => decide(current().draft)} onClose={navigation.back} />
             </div>
           )}

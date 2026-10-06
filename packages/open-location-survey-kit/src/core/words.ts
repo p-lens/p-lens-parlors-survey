@@ -158,7 +158,7 @@ export const japanese: Words = {
     chooseGroup: "を選択",
     hereFailed: "現在地がわかりませんでした。位置情報の許可を確かめてください。",
     placeTitle: "座標を決める",
-    placeGuide: "地図を動かして、真ん中の十字を入口に合わせてください。その場にいるなら「現在地を使う」が便利です。",
+    placeGuide: "地図を動かして、十字を入口に合わせてください。",
     useGps: "現在地を使う",
     locating: "現在地を調べています…",
     gpsFailed: "現在地がわかりませんでした。位置情報の許可を確かめるか、地図を動かして決めてください。",

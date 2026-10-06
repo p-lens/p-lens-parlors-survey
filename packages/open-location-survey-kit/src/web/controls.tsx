@@ -9,13 +9,21 @@ const TONES: Readonly<Record<ButtonTone, string>> = {
   outline: "border border-accent text-accent hover:bg-surface-3",
 }
 
-export const Button = (props: JSX.ButtonHTMLAttributes<HTMLButtonElement> & { readonly tone?: ButtonTone }): JSX.Element => {
-  const [own, rest] = splitProps(props, ["tone", "class"])
+/** How much room a button takes: the form's own, or less where it sits over the map and every row it takes is map hidden. */
+type ButtonSize = "regular" | "compact"
+
+const SIZES: Readonly<Record<ButtonSize, string>> = {
+  regular: "px-4 py-2.5",
+  compact: "px-2 py-2",
+}
+
+export const Button = (props: JSX.ButtonHTMLAttributes<HTMLButtonElement> & { readonly tone?: ButtonTone; readonly size?: ButtonSize }): JSX.Element => {
+  const [own, rest] = splitProps(props, ["tone", "size", "class"])
   return (
     <button
       type="button"
       {...rest}
-      class={`rounded-md px-4 py-2.5 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${TONES[own.tone ?? "secondary"]} ${own.class ?? ""}`}
+      class={`rounded-md text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${SIZES[own.size ?? "regular"]} ${TONES[own.tone ?? "secondary"]} ${own.class ?? ""}`}
     />
   )
 }
