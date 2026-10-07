@@ -6,6 +6,7 @@ import { draftFor, envelopeOf, localDay, needsPosition } from "../src/web/draft"
 import { copyrightIn, repositoryPage } from "../src/vite/credits"
 import { clampSize } from "../src/web/frame/resize"
 import { blocksOfMarkdown } from "../src/web/markdown"
+import { answeredAddress, callerAddress, returnAddressOf } from "../src/web/caller"
 import { addressOf, paneOf, parentOf, placeOf, showingOf, type Place } from "../src/web/place"
 import { comparable, searchSubjects } from "../src/web/search"
 import { aedSchema, CONTRIBUTOR, JUDGING } from "./fixtures"
@@ -176,5 +177,49 @@ describe("blocksOfMarkdown", () => {
 
   test("a link to anything but a page or a mail address stays text, and HTML is not passed through", () => {
     expect(blocksOfMarkdown("[押す](javascript:alert(1))<b>x</b>")).toEqual([{ type: "paragraph", inlines: [{ type: "text", text: "[押す](javascript:alert(1))<b>x</b>" }] }])
+  })
+})
+
+describe("callers", () => {
+  const origins = ["https://app.example", "http://localhost:8136"]
+  const naming = (address: string): string => `?${new URLSearchParams({ return: address }).toString()}`
+
+  test("a return address is taken from the query when it is a page of an origin named", () => {
+    expect(returnAddressOf(naming("https://app.example/back?game=a"), origins)).toBe("https://app.example/back?game=a")
+    expect(returnAddressOf(naming("http://localhost:8136/back"), origins)).toBe("http://localhost:8136/back")
+    expect(returnAddressOf("?kind=add", origins)).toBeUndefined()
+  })
+
+  test("a return address anywhere else is passed over", () => {
+    const elsewhere = [
+      "https://evil.example/back",
+      "https://app.example.evil.example/back",
+      "https://app.example@evil.example/back",
+      "http://app.example/back",
+      "https://app.example:8443/back",
+      "//app.example/back",
+      "/back",
+      "javascript:alert(1)",
+      "data:text/html,x",
+      "",
+    ]
+    elsewhere.forEach((address) => expect(returnAddressOf(naming(address), origins)).toBeUndefined())
+    expect(returnAddressOf(naming("https://app.example/back"), [])).toBeUndefined()
+  })
+
+  test("an address kept is held to the origins again when it is read back", () => {
+    expect(callerAddress("https://app.example/back", origins)).toBe("https://app.example/back")
+    expect(callerAddress("https://evil.example/back", origins)).toBeUndefined()
+    expect(callerAddress(undefined, origins)).toBeUndefined()
+  })
+
+  test("an answer goes into the query beside what the caller put there", () => {
+    const answered = new URL(answeredAddress("https://app.example/back?game=a", { report: "0199-x", name: "梅田駅 中央改札 & 東" }))
+    expect(`${answered.origin}${answered.pathname}`).toBe("https://app.example/back")
+    expect(Object.fromEntries(answered.searchParams)).toEqual({ game: "a", report: "0199-x", name: "梅田駅 中央改札 & 東" })
+  })
+
+  test("an answer of nothing goes back as the caller's address was", () => {
+    expect(answeredAddress("https://app.example/back?game=a", {})).toBe("https://app.example/back?game=a")
   })
 })

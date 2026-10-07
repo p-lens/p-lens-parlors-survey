@@ -35,7 +35,7 @@ is 地理院タイル, so within Japan for now).
 | The icon in the browser's tab | `apps/web/branding/favicon.svg` |
 | How the schema is passed, the list's file names, where the map opens, what a row of the list shows | `apps/web/src/main.tsx` |
 | The guide for language models | `apps/web/public/llms.txt` |
-| Where the list is published, the Turnstile key | `apps/web/.env.local`, `apps/api/wrangler.jsonc` |
+| Where the list is published, the Turnstile key, the origins a person is taken back to | `apps/web/.env.local`, `apps/api/wrangler.jsonc` |
 | Where the page may load from (add to `connect-src` if the list or the map comes from elsewhere) | `apps/web/public/_headers` |
 | The repository issues are filed in, and the GitHub App | `apps/api/wrangler.jsonc` |
 
@@ -70,6 +70,24 @@ From `VITE_LIST_URL`:
 parlors.jsonl    {"id", "name", "reading", "keywords"?, "prefecture", "address", "lat", "lon"}   placed, as app.p-lens.jp reads it
 unplaced.jsonl   {"id", "name", "reading", "prefecture", "address"?, "officialUrl"?}           no position yet
 ```
+
+## Sent from app.p-lens.jp, and back
+
+A person starting a play at a parlor the app's list lacks is sent here with
+`?return=` and the app's own address. Once their report is taken, the screen
+that thanks them leads back with what the app keeps the parlor by until the
+list has it:
+
+```text
+/parlors/submitted?game=…&submission=<the report's id>&name=<the parlor>&prefecture=<its prefecture>
+```
+
+A parlor reported as new goes back as it was typed; one given its position,
+as the list names it. The id is the one the issue is filed under, and the
+one a maintainer writes in the parlor's `submissions` when the report is
+merged — which is how the app comes to know the parlor it kept is listed. A
+closing or a correction brings the app no parlor and goes back with nothing
+added. Only the origins in `VITE_CALLER_ORIGINS` are gone back to.
 
 ## One parlor to a name
 

@@ -77,6 +77,8 @@ export interface Words {
     readonly takenBody: string
     readonly takenId: string
     readonly another: string
+    /** On the way back to the page that sent the person, once their report is taken. */
+    readonly returnToCaller: string
     readonly goneGuide: string
     readonly officialPage: string
     readonly noPositionYet: string
@@ -182,6 +184,7 @@ export const japanese: Words = {
     takenBody: "ありがとうございます。内容を確かめてから公開データに反映します。",
     takenId: "受付番号",
     another: "続けて知らせる",
+    returnToCaller: "もとのページに戻る",
     goneGuide: "なくなったこと（閉鎖の貼り紙、看板の撤去、別のものになっている など）を確かめたら知らせてください。",
     officialPage: "運営者の公式ページ",
     noPositionYet: "まだ地図上の座標がわかっていません。",

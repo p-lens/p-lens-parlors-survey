@@ -5,6 +5,7 @@ import type { ObservationKind } from "../core/schema"
 import type { Words } from "../core/words"
 import { AboutPanel } from "./AboutPanel"
 import { BrowsePanel } from "./BrowsePanel"
+import { answerCaller, answerFor, rememberCaller } from "./caller"
 import { ComposePanel, type Sending } from "./ComposePanel"
 import type { SurveyConfig } from "./config"
 import { BackIcon, HelpIcon, PanelIcon } from "./controls"
@@ -200,9 +201,15 @@ const Survey = (props: { readonly config: SurveyConfig; readonly list: SurveyLis
       setWork({ draft, sending: { type: "failed", message: sendErrorText(taken.error, config.words), problems: taken.error.type === "invalid" ? taken.error.problems : [] } })
       return
     }
+    if (config.callers !== undefined) answerCaller(config.callers, { id: taken.value, kind: draft.kind, subject: draft.subject, values: draft.values })
     const current = showing()
     setWork(undefined)
     if (current.type === "report" && current.kind === draft.kind && current.subject?.id === draft.subject?.id) navigation.replace({ type: "taken", ref: taken.value })
+  }
+
+  const wayBack = (ref: string): (() => void) | undefined => {
+    const address = config.callers === undefined ? undefined : answerFor(ref, config.callers)
+    return address === undefined ? undefined : () => window.location.assign(address)
   }
 
   const corner = (): { readonly label: string; readonly icon: JSX.Element; readonly press: () => void } | undefined => {
@@ -297,7 +304,7 @@ const Survey = (props: { readonly config: SurveyConfig; readonly list: SurveyLis
                 />
               )}
             </Match>
-            <Match when={when("taken")}>{(current) => <TakenPanel words={config.words} id={current().ref} onAnother={navigation.back} />}</Match>
+            <Match when={when("taken")}>{(current) => <TakenPanel words={config.words} id={current().ref} onReturn={wayBack(current().ref)} onAnother={navigation.back} />}</Match>
           </Switch>
         </div>
       }
@@ -337,6 +344,7 @@ const Survey = (props: { readonly config: SurveyConfig; readonly list: SurveyLis
  * read where the list cannot be reached.
  */
 export const SurveyApp = (props: { readonly config: SurveyConfig }): JSX.Element => {
+  if (props.config.callers !== undefined) rememberCaller(window.location.search, props.config.callers)
   const navigation = createNavigation()
   const [list] = createResource(() => readSurveyList(props.config.listBase, props.config.listFiles, props.config.schema))
   const loaded = (): SurveyList | undefined => {

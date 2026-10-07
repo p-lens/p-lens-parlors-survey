@@ -96,6 +96,7 @@ render(
         summarize: (subject) => String(subject.attributes["address"] ?? ""),
         linkOf: () => undefined,
         turnstileKey: undefined,
+        callers: undefined,
       }}
     />
   ),
@@ -124,6 +125,19 @@ Solid、MapLibre 6、Tailwind 4 で、Vite でビルドします。ページは�
 | `/privacy`、`/licenses` | 読み物のページ |
 
 配信する側は、このどれに対してもページを返す必要があります（シングルページアプリケーションのフォールバック）。ページはオリジンの直下から配られる前提です。
+
+### 呼び出し元
+
+一覧にないものを必要とするよそのページは、人をここへ送り、何が報告されたかを受け取れます。自分のアドレスを `return` に入れて調査を開きます（`https://survey.example/?return=https%3A%2F%2Fapp.example%2Fback`）。その人の報告が受け付けられると、お礼の画面に戻り道が出て、報告の答えをクエリに足したそのアドレスへ戻ります。
+
+```ts
+callers: {
+  origins: ["https://app.example"],
+  answerOf: (taken) => ({ report: taken.id }),
+}
+```
+
+人を戻す先は `origins` のオリジンだけです。それ以外を指す `return` は無視するので、見知らぬ人の作ったリンクの言うままに人を送る道にはなりません。`answerOf` は調査の側が書きます。報告の ID、種類、対象の一覧項目、入力された値が渡され、返したものが、呼び出し元が自分で付けたクエリの横に足されます。呼び出し元はタブが生きている間だけ覚えておき、調査自身のアドレスには載せず、サーバにも送りません。`callers` が undefined なら、誰もどこにも戻しません。
 
 ### Vite プラグイン
 

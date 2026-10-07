@@ -126,6 +126,7 @@ render(
         summarize: (subject) => String(subject.attributes["address"] ?? ""),
         linkOf: () => undefined,
         turnstileKey: undefined,
+        callers: undefined,
       }}
     />
   ),
@@ -167,6 +168,30 @@ walks back through them and a screen can be linked to:
 
 The host must answer every one of these with the page (a single-page
 application's fallback), and the page is served from the root of its origin.
+
+### Callers
+
+A page elsewhere that needs something the list lacks can send a person here
+and be told what they reported. It opens the survey with its own address in
+`return` (`https://survey.example/?return=https%3A%2F%2Fapp.example%2Fback`);
+once a report of theirs is taken, the screen that thanks them offers the way
+back, to that address with the report's answer added to its query.
+
+```ts
+callers: {
+  origins: ["https://app.example"],
+  answerOf: (taken) => ({ report: taken.id }),
+}
+```
+
+`origins` are the only origins a person is taken back to: a `return` naming
+anywhere else is passed over, so the survey is no way to send people where a
+stranger's link says. `answerOf` is the survey's to write — the report's id,
+its kind, the listed thing it concerns and what was typed are handed to it —
+and what it gives goes into the query beside whatever the caller put there.
+The caller is remembered for as long as the tab lives, never in the survey's
+own addresses, and nothing of it is sent to the server. With `callers`
+undefined nobody is taken anywhere.
 
 ### The Vite plugin
 

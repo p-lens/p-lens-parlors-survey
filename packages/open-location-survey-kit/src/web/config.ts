@@ -2,6 +2,7 @@ import type { Basemap } from "../core/basemaps"
 import type { ListedSubject } from "../core/listed"
 import type { SurveySchema } from "../core/schema"
 import type { Words } from "../core/words"
+import type { Callers } from "./caller"
 
 /**
  * What makes a survey this survey and nobody else's: its name, what it says
@@ -62,4 +63,6 @@ export interface SurveyConfig {
   readonly linkOf: (subject: ListedSubject) => string | undefined
   /** A Cloudflare Turnstile site key; none shows no challenge. */
   readonly turnstileKey: string | undefined
+  /** The pages a person may be sent here from and taken back to with what they reported; none takes nobody anywhere. */
+  readonly callers: Callers | undefined
 }

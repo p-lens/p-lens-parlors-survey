@@ -26,7 +26,7 @@ apps/api/                           Worker：店舗のスキーマと GitHub App
 | ブラウザのタブに出るアイコン | `apps/web/branding/favicon.svg` |
 | スキーマの渡し方、一覧のファイル名、地図の初期位置、一覧の 1 行に出すもの | `apps/web/src/main.tsx` |
 | AI 向けの案内 | `apps/web/public/llms.txt` |
-| 一覧の公開場所、Turnstile の鍵 | `apps/web/.env.local`、`apps/api/wrangler.jsonc` |
+| 一覧の公開場所、Turnstile の鍵、人を戻す先のオリジン | `apps/web/.env.local`、`apps/api/wrangler.jsonc` |
 | ページが読み込んでよい相手（一覧や地図を別の場所から読むなら `connect-src` に足す） | `apps/web/public/_headers` |
 | 起票先のリポジトリと GitHub App | `apps/api/wrangler.jsonc` |
 
@@ -55,6 +55,16 @@ Worker は、報告が人から来たことをどう確かめるかが決まる�
 parlors.jsonl    {"id", "name", "reading", "keywords"?, "prefecture", "address", "lat", "lon"}   配置済み。app.p-lens.jp が読むのと同じもの
 unplaced.jsonl   {"id", "name", "reading", "prefecture", "address"?, "officialUrl"?}           座標がまだない店舗
 ```
+
+## app.p-lens.jp から来て、戻る
+
+アプリの一覧にない店舗で稼働を始めようとした人は、`?return=` にアプリ自身のアドレスを付けてここへ送られます。報告が受け付けられると、お礼の画面から、一覧に載るまでアプリがその店舗を控えておくためのものを持って戻ります。
+
+```text
+/parlors/submitted?game=…&submission=<報告の ID>&name=<店名>&prefecture=<都道府県>
+```
+
+新しい店舗の報告は入力されたとおりに、座標を付けた店舗は一覧の名前で戻ります。ID は issue に書かれるものと同じで、報告を取り込むときにメンテナが店舗の `submissions` に書くものです。これで、アプリは控えておいた店舗が一覧に載ったことを知ります。閉店や訂正の報告はアプリに店舗をもたらさないので、何も足さずに戻ります。戻る先は `VITE_CALLER_ORIGINS` のオリジンだけです。
 
 ## 同じ名前の店舗は受け付けない
 
