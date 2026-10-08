@@ -177,9 +177,14 @@ and be told what they reported. It opens the survey with its own address in
 once a report of theirs is taken, the screen that thanks them offers the way
 back, to that address with the report's answer added to its query.
 
+A page that sends a person for one listed thing — to say where it is, say —
+names it in `find` (`?find=<its name>`): the list opens searched for it, so
+it is the one found.
+
 ```ts
 callers: {
   origins: ["https://app.example"],
+  note: "What you report here is kept by app.example until the list has it.",
   answerOf: (taken) => ({ report: taken.id }),
 }
 ```

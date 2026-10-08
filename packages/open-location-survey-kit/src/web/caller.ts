@@ -23,6 +23,8 @@ export interface Callers {
    * is passed over, so a link a stranger made sends nobody where it says.
    */
   readonly origins: readonly string[]
+  /** What a person sent from one of the origins reads above the list, in place of what the survey says of itself: what reporting here does for the page they came from. */
+  readonly note: string
   /** What a report taken adds to the return address's query; nothing for a report the caller has no use for. */
   readonly answerOf: (taken: TakenReport) => Readonly<Record<string, string>>
 }
@@ -76,6 +78,9 @@ export const rememberCaller = (search: string, callers: Callers): void => {
   const caller = returnAddressOf(search, callers.origins)
   if (caller !== undefined) keep(CALLER, caller)
 }
+
+/** Whether a caller sent the person and waits for them, for as long as the tab lives. */
+export const callerWaiting = (callers: Callers): boolean => callerAddress(stored(CALLER), callers.origins) !== undefined
 
 /**
  * Keep the address a report taken is gone back with, if a caller is waiting

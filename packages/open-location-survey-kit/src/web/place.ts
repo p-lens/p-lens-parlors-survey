@@ -83,6 +83,13 @@ export const placeOf = (pathname: string, search: string): Place => {
   }
 }
 
+/**
+ * What an address asks the list to be searched for as the page opens: an
+ * app that sends a person here for one listed thing names it in `?find=`,
+ * so the list opens on it. The survey's own addresses carry none.
+ */
+export const findOf = (search: string): string => new URLSearchParams(search).get("find")?.trim() ?? ""
+
 export const samePlace = (left: Place, right: Place): boolean => addressOf(left) === addressOf(right)
 
 /** Where going back leads when there is no history to go back through, as when a link was opened. */

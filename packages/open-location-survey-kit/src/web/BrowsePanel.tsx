@@ -31,7 +31,8 @@ const groupField = (config: SurveyConfig): { readonly label: string; readonly op
 }
 
 /**
- * Where a survey starts: what it is for, a way to the map around the person
+ * Where a survey starts: what it is for — or, for a person a caller sent,
+ * what reporting here does for where they came from — a way to the map around the person
  * and a new report, then search every listed thing, or go through those still
  * waiting for a position. A survey that names a group field has a filter
  * beside the search, which narrows both to one group.
@@ -39,6 +40,11 @@ const groupField = (config: SurveyConfig): { readonly label: string; readonly op
 export const BrowsePanel = (props: {
   readonly config: SurveyConfig
   readonly list: SurveyList
+  /** What a person a caller sent reads above the list, in place of what the survey says of itself; none when nobody sent them. */
+  readonly callerNote: string | undefined
+  /** What the search holds: kept above the panel, so it is still there when the list is come back to. */
+  readonly query: string
+  readonly onQuery: (query: string) => void
   readonly onPick: (subject: ListedSubject) => void
   readonly onAdd: (() => void) | undefined
   /** Shows the map where the person is; false when the device would not say. */
@@ -50,7 +56,7 @@ export const BrowsePanel = (props: {
     setLocating((await props.onLocate()) ? { type: "idle" } : { type: "failed" })
   }
   const grouping = groupField(props.config)
-  const [query, setQuery] = createSignal("")
+  const query = (): string => props.query
   const [filter, setFilter] = createSignal<"closed" | "open">("closed")
   const [group, setGroup] = createSignal<string | undefined>()
   const inGroup = (subject: ListedSubject): boolean => group() === undefined || subject.attributes[props.config.groupField ?? ""] === group()
@@ -60,7 +66,7 @@ export const BrowsePanel = (props: {
 
   return (
     <div class="flex h-full flex-col gap-3">
-      <p class="text-sm text-text-secondary">{props.config.branding.description}</p>
+      <p class="text-sm text-text-secondary">{props.callerNote ?? props.config.branding.description}</p>
       <div class="flex gap-2">
         <Button class="min-w-0 flex-1" onClick={() => void locate()} disabled={locating().type === "locating"}>
           {locating().type === "locating" ? words.locating : words.here}
@@ -80,7 +86,7 @@ export const BrowsePanel = (props: {
       <div class="flex gap-2">
         <label class="relative min-w-0 flex-1">
           <SearchIcon class="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-text-muted" />
-          <TextInput type="search" class="pl-9" placeholder={words.search} value={query()} onInput={(event) => setQuery(event.currentTarget.value)} />
+          <TextInput type="search" class="pl-9" placeholder={words.search} value={query()} onInput={(event) => props.onQuery(event.currentTarget.value)} />
         </label>
         <Show when={grouping}>
           <button

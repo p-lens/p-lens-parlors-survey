@@ -82,6 +82,10 @@ list has it:
 /parlors/submitted?game=…&submission=<the report's id>&name=<the parlor>&prefecture=<its prefecture>
 ```
 
+A person who chose a parlor the list has not yet placed on the map is sent
+here with `?find=` and the parlor's name as well, so the list opens searched
+for it and its position can be reported.
+
 A parlor reported as new goes back as it was typed; one given its position,
 as the list names it. The id is the one the issue is filed under, and the
 one a maintainer writes in the parlor's `submissions` when the report is

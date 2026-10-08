@@ -7,7 +7,7 @@ import { copyrightIn, repositoryPage } from "../src/vite/credits"
 import { clampSize } from "../src/web/frame/resize"
 import { blocksOfMarkdown } from "../src/web/markdown"
 import { answeredAddress, callerAddress, returnAddressOf } from "../src/web/caller"
-import { addressOf, paneOf, parentOf, placeOf, showingOf, type Place } from "../src/web/place"
+import { addressOf, findOf, paneOf, parentOf, placeOf, showingOf, type Place } from "../src/web/place"
 import { comparable, searchSubjects } from "../src/web/search"
 import { aedSchema, CONTRIBUTOR, JUDGING } from "./fixtures"
 
@@ -126,6 +126,14 @@ describe("places", () => {
     expect(showingOf({ type: "report", kind: "amend", id: undefined }, subjects, aedSchema)).toBeUndefined()
     expect(showingOf({ type: "report", kind: "add", id: "node/1" }, subjects, aedSchema)).toBeUndefined()
     expect(showingOf({ type: "placing", kind: "amend", id: "node/1" }, subjects, aedSchema)).toBeUndefined()
+  })
+})
+
+describe("what an address asks the list to be searched for", () => {
+  test("is what `find` names, and nothing where it names none", () => {
+    expect(findOf("?find=%E3%82%AC%E3%82%A4%E3%82%A2%20%E9%9B%A3%E6%B3%A2%E5%BA%97&return=https%3A%2F%2Fapp.test%2F")).toBe("ガイア 難波店")
+    expect(findOf("?find=%20%20")).toBe("")
+    expect(findOf("")).toBe("")
   })
 })
 

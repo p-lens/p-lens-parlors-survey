@@ -54,7 +54,7 @@ const config: SurveyConfig = {
   summarize: (subject) => `${text(subject, "prefecture")}${text(subject, "address")}`,
   linkOf: (subject) => text(subject, "officialUrl") || undefined,
   turnstileKey: import.meta.env.VITE_TURNSTILE_SITE_KEY || undefined,
-  callers: callerOrigins.length === 0 ? undefined : { origins: callerOrigins, answerOf },
+  callers: callerOrigins.length === 0 ? undefined : { origins: callerOrigins, note: branding.callerNote, answerOf },
 }
 
 const root = document.getElementById("root")

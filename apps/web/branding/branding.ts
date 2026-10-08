@@ -8,9 +8,11 @@
  */
 export const branding = {
   /** The survey's name: its title bar, and the page's title. */
-  title: "P-Lens P店調査",
+  title: "P-Lens 店舗検索",
   /** What the survey is for and what it takes, in a sentence or two above the list. */
   description: "誰でも検索できる、パチンコ・パチスロ店舗のオープンデータ（ODbL）です。載っていない店舗や座標、閉店、店名や読みの誤りを知らせると、公開の issue として起票され、確認のうえ一覧に反映されます。",
+  /** What a person sent from app.p-lens.jp reads above the list instead: what a report made here becomes there. */
+  callerNote: "ここで店舗を報告すると、app.p-lens.jp には申請中の店舗として登録されます。報告が一覧に反映されると、帳簿の店舗名にも反映されます。",
   /** What search engines are told the page is; not shown on the page. */
   summary: "パチンコ・パチスロ店舗を誰でも検索できます。全国の店舗をオープンデータとして地図と一覧で公開しています。",
   /** The page of whoever runs the survey. */

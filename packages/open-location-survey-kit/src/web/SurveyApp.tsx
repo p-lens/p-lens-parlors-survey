@@ -5,7 +5,7 @@ import type { ObservationKind } from "../core/schema"
 import type { Words } from "../core/words"
 import { AboutPanel } from "./AboutPanel"
 import { BrowsePanel } from "./BrowsePanel"
-import { answerCaller, answerFor, rememberCaller } from "./caller"
+import { answerCaller, answerFor, callerWaiting, rememberCaller } from "./caller"
 import { ComposePanel, type Sending } from "./ComposePanel"
 import type { SurveyConfig } from "./config"
 import { BackIcon, HelpIcon, PanelIcon } from "./controls"
@@ -18,7 +18,7 @@ import { createArrangement } from "./frame/arrangement"
 import { SurveyFrame } from "./frame/SurveyFrame"
 import { TitleBar } from "./frame/TitleBar"
 import { createNavigation, type Navigation } from "./navigation"
-import { paneOf, showingOf, type Place, type Showing } from "./place"
+import { findOf, paneOf, showingOf, type Place, type Showing } from "./place"
 import { PlacingPanel } from "./PlacingPanel"
 import { sendReport, type SendError } from "./send"
 import { SubjectPanel } from "./SubjectPanel"
@@ -101,7 +101,7 @@ const listErrorText = (error: ListError, words: Words): string => (error.type ==
  * A new thing is reported from the map, so starting one from the list goes by
  * way of it: back from the form is the map, and back again the list.
  */
-const Survey = (props: { readonly config: SurveyConfig; readonly list: SurveyList; readonly navigation: Navigation }): JSX.Element => {
+const Survey = (props: { readonly config: SurveyConfig; readonly list: SurveyList; readonly navigation: Navigation; readonly find: string }): JSX.Element => {
   const { config, navigation } = props
   const arrangement = createArrangement(NARROW_BELOW)
   const [work, setWork] = createSignal<Work | undefined>()
@@ -110,6 +110,7 @@ const Survey = (props: { readonly config: SurveyConfig; readonly list: SurveyLis
   const [side, setSide] = createSignal<"shown" | "folded">("shown")
   const [card, setCard] = createSignal<"closed" | "open">("closed")
   const [turnstile, setTurnstile] = createSignal<string | undefined>()
+  const [query, setQuery] = createSignal(props.find)
   const held: { center: MapPoint; gps: MapPoint | undefined } = { center: { latitude: config.start.latitude, longitude: config.start.longitude }, gps: undefined }
   const today = localDay(new Date())
   const subjects = createMemo(() => new Map([...props.list.placed, ...props.list.unplaced].map((subject) => [subject.id, subject] as const)))
@@ -271,6 +272,9 @@ const Survey = (props: { readonly config: SurveyConfig; readonly list: SurveyLis
           <BrowsePanel
             config={config}
             list={props.list}
+            callerNote={config.callers !== undefined && callerWaiting(config.callers) ? config.callers.note : undefined}
+            query={query()}
+            onQuery={setQuery}
             onPick={(subject) => navigation.go({ type: "subject", id: subject.id })}
             onAdd={config.schema.observations.includes("add") ? addFromList : undefined}
             onLocate={lookAround}
@@ -345,6 +349,7 @@ const Survey = (props: { readonly config: SurveyConfig; readonly list: SurveyLis
  */
 export const SurveyApp = (props: { readonly config: SurveyConfig }): JSX.Element => {
   if (props.config.callers !== undefined) rememberCaller(window.location.search, props.config.callers)
+  const find = findOf(window.location.search)
   const navigation = createNavigation()
   const [list] = createResource(() => readSurveyList(props.config.listBase, props.config.listFiles, props.config.schema))
   const loaded = (): SurveyList | undefined => {
@@ -358,7 +363,7 @@ export const SurveyApp = (props: { readonly config: SurveyConfig }): JSX.Element
   return (
     <>
       <Switch fallback={<p class="p-6 text-sm text-text-secondary">{props.config.words.ui.listLoading}</p>}>
-        <Match when={loaded()}>{(value) => <Survey config={props.config} list={value()} navigation={navigation} />}</Match>
+        <Match when={loaded()}>{(value) => <Survey config={props.config} list={value()} navigation={navigation} find={find} />}</Match>
         <Match when={failed()}>{(error) => <p class="p-6 text-sm text-negative">{listErrorText(error(), props.config.words)}</p>}</Match>
       </Switch>
       <Switch>
