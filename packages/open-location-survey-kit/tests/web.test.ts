@@ -7,6 +7,7 @@ import { copyrightIn, repositoryPage } from "../src/vite/credits"
 import { clampSize } from "../src/web/frame/resize"
 import { blocksOfMarkdown } from "../src/web/markdown"
 import { answeredAddress, callerAddress, returnAddressOf } from "../src/web/caller"
+import { keptStands } from "../src/web/list"
 import { addressOf, findOf, paneOf, parentOf, placeOf, showingOf, type Place } from "../src/web/place"
 import { comparable, searchSubjects } from "../src/web/search"
 import { aedSchema, CONTRIBUTOR, JUDGING } from "./fixtures"
@@ -126,6 +127,15 @@ describe("places", () => {
     expect(showingOf({ type: "report", kind: "amend", id: undefined }, subjects, aedSchema)).toBeUndefined()
     expect(showingOf({ type: "report", kind: "add", id: "node/1" }, subjects, aedSchema)).toBeUndefined()
     expect(showingOf({ type: "placing", kind: "amend", id: "node/1" }, subjects, aedSchema)).toBeUndefined()
+  })
+})
+
+describe("a file of the list kept from an earlier visit", () => {
+  test("stands for the published one only where both tell the same version", () => {
+    expect(keptStands('"a1"', '"a1"')).toBe(true)
+    expect(keptStands('"a1"', '"b2"')).toBe(false)
+    expect(keptStands('"a1"', undefined)).toBe(false)
+    expect(keptStands(undefined, undefined)).toBe(false)
   })
 })
 
