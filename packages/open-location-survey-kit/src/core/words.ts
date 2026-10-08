@@ -75,6 +75,8 @@ export interface Words {
     readonly listLoading: string
     readonly takenTitle: string
     readonly takenBody: string
+    /** Names the link to where the report just taken can be read, beside everyone else's. */
+    readonly takenReports: string
     readonly takenId: string
     readonly another: string
     /** On the way back to the page that sent the person, once their report is taken. */
@@ -180,8 +182,9 @@ export const japanese: Words = {
     listUnconfigured: "一覧の場所が設定されていません",
     listUnreachable: "一覧を読み込めませんでした",
     listLoading: "一覧を読み込んでいます…",
-    takenTitle: "受け付けました",
-    takenBody: "ありがとうございます。内容を確かめてから公開データに反映します。",
+    takenTitle: "ご協力ありがとうございました",
+    takenBody: "報告を受け付けました。数十秒ほどで公開の報告一覧に載り、内容を確かめたうえで店舗データに反映します。",
+    takenReports: "報告一覧を見る",
     takenId: "受付番号",
     another: "続けて知らせる",
     returnToCaller: "もとのページに戻る",

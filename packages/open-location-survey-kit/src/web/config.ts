@@ -20,6 +20,8 @@ export interface SurveyBranding {
   readonly operatorUrl: string
   /** Where the list is kept and reports are filed, named as the survey calls it. */
   readonly dataLink: { readonly label: string; readonly url: string }
+  /** Where the reports taken are filed for anyone to read: the page a person is pointed to once theirs is taken. */
+  readonly reportsUrl: string
   /** HTML naming where the list comes from and under what licence, shown on the map. */
   readonly listAttribution: string
 }

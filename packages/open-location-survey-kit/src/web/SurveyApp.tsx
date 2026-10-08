@@ -308,7 +308,7 @@ const Survey = (props: { readonly config: SurveyConfig; readonly list: SurveyLis
                 />
               )}
             </Match>
-            <Match when={when("taken")}>{(current) => <TakenPanel words={config.words} id={current().ref} onReturn={wayBack(current().ref)} onAnother={navigation.back} />}</Match>
+            <Match when={when("taken")}>{(current) => <TakenPanel words={config.words} id={current().ref} reportsUrl={config.branding.reportsUrl} onReturn={wayBack(current().ref)} onAnother={navigation.back} />}</Match>
           </Switch>
         </div>
       }

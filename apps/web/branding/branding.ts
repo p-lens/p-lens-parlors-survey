@@ -19,6 +19,8 @@ export const branding = {
   operatorUrl: "https://app.p-lens.jp/",
   /** Where the list is kept and reports are filed, named as the survey calls it. */
   dataLink: { label: "店舗データ", url: "https://github.com/p-lens/p-lens-parlors" },
+  /** Where each report is filed as a public issue, a few tens of seconds after it is taken. */
+  reportsUrl: "https://github.com/p-lens/p-lens-parlors/issues",
   /** HTML naming where the list comes from and under what licence, shown on the map. */
   listAttribution: '店舗 © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap contributors</a> (ODbL)',
 }
