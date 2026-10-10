@@ -1,13 +1,14 @@
 import { subjectUnknown } from "../core/known"
 import { subjectsOfJsonl, type ListedSubject } from "../core/listed"
 import { nameTaken } from "../core/namesake"
-import { readEnvelope } from "../core/observation"
+import { readEnvelope, type Submission } from "../core/observation"
 import { REPORTS_PATH } from "../core/reports-path"
 import type { Problem, SurveySchema } from "../core/schema"
 import { uuidv7 } from "../core/uuidv7"
 import type { Words } from "../core/words"
 import { issueOf } from "../outputs/issue"
-import { recordOf } from "../outputs/record"
+import { recordOf, type SurveyRecord } from "../outputs/record"
+import { Ok, type Result } from "../core/result"
 import type { IssueSink, SinkError } from "./github-app"
 import { turnstilePasses } from "./turnstile"
 
@@ -17,6 +18,23 @@ import { turnstilePasses } from "./turnstile"
  * to the world, such as one being developed.
  */
 export type Challenge = { readonly type: "turnstile"; readonly secret: string } | { readonly type: "none" }
+
+/** Where a part of a report goes as a record, to be kept however that place keeps things. */
+export type RecordSink = (record: SurveyRecord) => Promise<Result<void, SinkError>>
+
+/**
+ * Somewhere else a part of a report is kept. A report may say things that
+ * belong to different keepers — what a shop posts, and what was seen at
+ * its neighbour's — and each keeper is given only its own: the report is
+ * divided, the part that goes there handed over as a record, what is left
+ * filed as the issue. Either part may be nothing. Both go under the one
+ * id, so each can be found from the other.
+ */
+export interface Elsewhere {
+  readonly divide: (submission: Submission) => { readonly there: Submission | undefined; readonly here: Submission | undefined }
+  /** Where the part kept there goes; undefined while none is set up, and then a report with such a part is not taken. */
+  readonly sink: RecordSink | undefined
+}
 
 /** What the server needs to take reports for one survey. */
 export interface SurveyServer {
@@ -28,6 +46,10 @@ export interface SurveyServer {
   readonly list: { readonly base: string; readonly files: readonly string[] } | undefined
   /** Where an accepted report's issue goes; undefined while none is set up. */
   readonly sink: IssueSink | undefined
+  /** Where a part of a report is kept instead; undefined for a survey whose reports are filed whole. */
+  readonly elsewhere: Elsewhere | undefined
+  /** Rules of the survey that take a whole report to judge — what it says together with how it was learned and of which day; undefined for a survey with none. */
+  readonly alsoJudged: ((submission: Submission, today: string) => readonly Problem[]) | undefined
   /** Undefined while the survey has not said which, and then no report is taken: a server open to anyone's script is never the default. */
   readonly challenge: Challenge | undefined
   /** Whether one more report may be taken from a sender, told apart by the key; undefined sets no limit. */
@@ -130,7 +152,9 @@ const senderOf = (request: Request): string => request.headers.get("CF-Connectin
 /**
  * Take a report: count it against its sender's limit, judge it whole, ask
  * that it comes from a person, hold it against the list, and file it as an
- * issue. Nothing is stored here; the issue is the record.
+ * issue — a part of it handed elsewhere, where its survey keeps that part
+ * apart. Nothing is stored here; the issue, and what was handed over, are
+ * the record.
  *
  * The limit is asked first, before anything is read, since what it guards is
  * the work that follows: the list read from where it is published and an
@@ -140,18 +164,25 @@ export const takeReport = async (request: Request, server: SurveyServer, now: Da
   if (server.limiter !== undefined && !(await server.limiter(senderOf(request)))) return json(429, { type: "too-many" })
   const body = await bodyOf(request)
   if (body.type !== "read") return json(body.type === "too-large" ? 413 : 415, body)
-  const read = readEnvelope(body.value, { schema: server.schema, basemaps: server.basemaps, today: now.toISOString().slice(0, 10) })
+  const today = now.toISOString().slice(0, 10)
+  const read = readEnvelope(body.value, { schema: server.schema, basemaps: server.basemaps, today })
   if (!read.ok) return json(422, { type: "invalid", problems: read.error })
   if (server.challenge === undefined) return json(503, { type: "unavailable", detail: "no-challenge" })
   if (!(await challengePassed(server.challenge, read.value.turnstile, request, server.outbound))) return json(403, { type: "turnstile" })
   const observation = read.value.submission.observation
   const listed = await listedFor(server)
-  const problems = [...subjectUnknown(observation, listed), ...nameTaken(observation, server.schema, listed)]
+  const problems = [...subjectUnknown(observation, listed), ...nameTaken(observation, server.schema, listed), ...(server.alsoJudged?.(read.value.submission, today) ?? [])]
   if (problems.length > 0) return json(422, { type: "invalid", problems })
-  if (server.sink === undefined) return json(503, { type: "unavailable", detail: "no-sink" })
-  const record = recordOf(uuidv7(now.getTime(), random), server.schema.id, now.toISOString(), read.value.submission)
-  const filed = await server.sink(issueOf(record, server.schema, server.words))
-  return filed.ok ? json(201, { id: record.id }) : json(503, { type: "unavailable", detail: filed.error.type })
+  const { here, there } = server.elsewhere === undefined ? { here: read.value.submission, there: undefined } : server.elsewhere.divide(read.value.submission)
+  const issues = server.sink
+  const records = server.elsewhere?.sink
+  if ((here !== undefined && issues === undefined) || (there !== undefined && records === undefined)) return json(503, { type: "unavailable", detail: "no-sink" })
+  const id = uuidv7(now.getTime(), random)
+  const recorded = (submission: Submission): SurveyRecord => recordOf(id, server.schema.id, now.toISOString(), submission)
+  const filed = here === undefined || issues === undefined ? Ok(undefined) : await issues(issueOf(recorded(here), server.schema, server.words))
+  if (!filed.ok) return json(503, { type: "unavailable", detail: filed.error.type })
+  const kept = there === undefined || records === undefined ? Ok(undefined) : await records(recorded(there))
+  return kept.ok ? json(201, { id }) : json(503, { type: "unavailable", detail: kept.error.type })
 }
 
 /**

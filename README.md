@@ -14,7 +14,10 @@ and the broker's name. It is one report, published apart: the corners, and
 what each prize takes, in the parlor list's `tiers.jsonl`; and what the prizes
 came to at the broker, which is not the parlor, in a repository of its own,
 [p-lens-brokers](https://github.com/p-lens/p-lens-brokers) — not as a rate,
-but as a thing a player saw happen on a day.
+but as a thing a player saw happen on a day. The server divides the report in
+two, and no yen is filed in the parlor list's issue. What was seen at a listed
+parlor is added to p-lens-brokers' `data/observations.jsonl` as the report is
+taken, a line a row, and published as it is, nobody reading it first.
 
 It is [open-location-survey-kit](packages/open-location-survey-kit) given a
 parlor schema. The kit collects facts first-hand, with provenance, under CC0,
@@ -170,6 +173,24 @@ The App ID and the installation id are not secrets. They go in
 Make the labels `survey`, `parlor`, `add`, `locate`, `gone` and `amend` on the
 parlor list's repository.
 
+To keep what was seen at brokers in p-lens-brokers, **a second App** is made.
+It adds to a file, so it is kept apart from the App that only files issues, and
+is installed on p-lens-brokers alone.
+
+It is made as above, but for three things:
+
+- In step 4, under **Repository permissions**, set **Contents** and **Issues**
+  to **Read and write** — Contents to add the lines of what was seen, Issues
+  for what was seen at a parlor not yet listed
+- In step 8, under **Only select repositories**, choose p-lens-brokers alone
+- Its App ID and installation ID go into `apps/api/wrangler.jsonc` as
+  `GITHUB_BROKERS_APP_ID` and `GITHUB_BROKERS_INSTALLATION_ID`, and the
+  repository's name as `GITHUB_BROKERS_REPO`
+
+Make the labels `survey`, `broker` and `add` on p-lens-brokers. With any of the
+three values, or the private key put in below, missing, a report that says
+what was received at a broker is not taken.
+
 **2. Make a Cloudflare Turnstile site**
 
 In Turnstile on Cloudflare's dashboard, make a widget for `survey.p-lens.jp`.
@@ -185,7 +206,15 @@ bunx wrangler secret put GITHUB_APP_PRIVATE_KEY < ../../app.pkcs8.pem
 bunx wrangler secret put TURNSTILE_SECRET
 ```
 
-Then delete both `.pem` files.
+The key of p-lens-brokers' App is converted and put in the same way.
+
+```sh
+openssl pkcs8 -topk8 -nocrypt -in the-other-downloaded-key.pem -out brokers.pkcs8.pem
+cd apps/api
+bunx wrangler secret put GITHUB_BROKERS_APP_PRIVATE_KEY < ../../brokers.pkcs8.pem
+```
+
+Then delete every `.pem` file.
 
 **4. Get it onto `main`**
 

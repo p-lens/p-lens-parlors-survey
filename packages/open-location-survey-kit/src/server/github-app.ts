@@ -15,9 +15,13 @@ export type SinkError =
   | { readonly type: "bad-key" }
   | { readonly type: "token-refused"; readonly status: number }
   | { readonly type: "issue-refused"; readonly status: number }
+  | { readonly type: "file-refused"; readonly status: number }
 
 /** Where a record's issue goes. */
 export type IssueSink = (draft: IssueDraft) => Promise<Result<void, SinkError>>
+
+/** Where lines are set down, one after another at the end of what is there, as one commit under a message. */
+export type LineSink = (lines: readonly string[], message: string) => Promise<Result<void, SinkError>>
 
 const API = "https://api.github.com"
 const USER_AGENT = "open-location-survey-kit"
@@ -79,4 +83,53 @@ export const githubAppSink =
       body: JSON.stringify({ title: draft.title, body: draft.body, labels: draft.labels }),
     })
     return response.ok ? Ok(undefined) : Err({ type: "issue-refused", status: response.status })
+  }
+
+/** How many bytes are turned into text at a time: a call takes only so many arguments. */
+const CHUNK = 0x8000
+
+/** Bytes as base64, however many: GitHub takes a file's content so. */
+const base64 = (bytes: Uint8Array): string =>
+  btoa(Array.from({ length: Math.ceil(bytes.length / CHUNK) }, (_, chunk) => String.fromCharCode(...bytes.subarray(chunk * CHUNK, (chunk + 1) * CHUNK))).join(""))
+
+/** How many times lines are tried again when someone else's lines got there first. */
+const ATTEMPTS = 3
+
+/** A file's text with more lines at its end, each ended. */
+const withLines = (text: string, lines: readonly string[]): string => `${text === "" || text.endsWith("\n") ? text : `${text}\n`}${lines.join("\n")}\n`
+
+/**
+ * Lines added at the end of a file as it stands. The file is read as it is
+ * and written back longer, against the version read; where another writer
+ * got in between, GitHub refuses and it is read and written again.
+ */
+const appended = async (repo: string, path: string, lines: readonly string[], message: string, token: string, outbound: typeof fetch, attempts: number): Promise<Result<void, SinkError>> => {
+  const url = `${API}/repos/${repo}/contents/${path}`
+  const authorized = headers(`token ${token}`)
+  const found = await outbound(url, { headers: authorized })
+  if (!found.ok) return Err({ type: "file-refused", status: found.status })
+  const { sha } = (await found.json()) as { sha: string }
+  const read = await outbound(url, { headers: { ...authorized, Accept: "application/vnd.github.raw+json" } })
+  if (!read.ok) return Err({ type: "file-refused", status: read.status })
+  const written = await outbound(url, {
+    method: "PUT",
+    headers: { ...authorized, "Content-Type": "application/json" },
+    body: JSON.stringify({ message, content: base64(textBytes(withLines(await read.text(), lines))), sha }),
+  })
+  if (written.ok) return Ok(undefined)
+  return written.status === 409 && attempts > 1 ? appended(repo, path, lines, message, token, outbound, attempts - 1) : Err({ type: "file-refused", status: written.status })
+}
+
+/**
+ * Lines set down in a file of a repository by a GitHub App, which needs
+ * Contents: write there: for what is recorded as it is reported, with
+ * nobody reading it first — a log of things seen, not a list someone
+ * keeps. Each call is one commit, and whatever publishes the repository
+ * publishes it.
+ */
+export const githubAppLineSink =
+  (config: GitHubAppConfig & { readonly path: string }, outbound: typeof fetch, nowSeconds: () => number): LineSink =>
+  async (lines, message) => {
+    const token = await installationToken(config, outbound, nowSeconds())
+    return token.ok ? appended(config.repo, config.path, lines, message, token.value, outbound, ATTEMPTS) : token
   }

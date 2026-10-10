@@ -1,4 +1,4 @@
-import { Err, isForbidden, looksLikePlaceholder, Ok, type Attributes, type AttributeValue, type Problem, type Result, type Row, type SurveySchema } from "open-location-survey-kit"
+import { Err, isForbidden, looksLikePlaceholder, Ok, type Attributes, type AttributeValue, type Field, type Problem, type Result, type Row, type SurveySchema } from "open-location-survey-kit"
 
 import { PREFECTURES } from "./prefectures"
 
@@ -155,6 +155,7 @@ export const refineParlor = (attributes: Attributes): Result<Attributes, readonl
     settledAddress === undefined || settledAddress.ok ? undefined : settledAddress.error,
     isRows(tiers) ? tiersProblem(tiers) : undefined,
     isRows(prizes) ? prizesProblem(prizes) : undefined,
+    attributes["broker"] !== undefined && !(isRows(prizes) && prizes.some((row) => row["yen"] !== undefined)) ? { field: "broker", reason: "broker-says-nothing" } : undefined,
   ].filter((problem): problem is Problem => problem !== undefined)
   if (problems.length > 0) return Err(problems)
   return Ok(settledAddress?.ok ? { ...attributes, address: settledAddress.value } : attributes)
@@ -187,6 +188,33 @@ const MOST_TOKENS = 100_000
 
 /** The most a broker is taken to have paid for special prizes at one time. */
 const MOST_YEN = 100_000
+
+/**
+ * A parlor's special prizes as a report states them, a corner and a prize a
+ * row. What the parlor takes for a prize is the parlor's; what the broker
+ * paid for it is not, and is filed apart (`divideReport`).
+ */
+export const PRIZES: Field = {
+  key: "prizes",
+  label: "特殊景品",
+  hint: "コーナーごと、景品の種類ごとに 1 行。店舗で要る玉数・枚数と、交換所で実際に受け取った額を、分かるほうだけでも（例：4円パチンコ・小景品・280・1000）。交換所で受け取った額は、自分で交換して見たものだけを入れてください。人から聞いた額や、これから変わる予定の額は入れません。受け取った額は、確かめずにそのまま公開の記録に載ります",
+  kind: {
+    type: "rows",
+    maxCount: 24,
+    columns: [
+      { key: "game", label: "種別", kind: { type: "choice", options: ["パチンコ", "パチスロ"] }, required: true },
+      { key: "rate", label: "レート", kind: { type: "number", min: 0.1, max: 100, unit: "円" }, required: true },
+      { key: "name", label: "景品の名前", kind: { type: "text", maxLength: 10 }, required: true },
+      { key: "tokens", label: "要る玉数・枚数", kind: { type: "number", min: 1, max: MOST_TOKENS }, required: false },
+      { key: "yen", label: "交換所で受け取った額", kind: { type: "number", min: 1, max: MOST_YEN, unit: "円" }, required: false },
+    ],
+  },
+  required: false,
+  amendable: true,
+}
+
+/** The name of the broker that bought the special prizes, said with what it paid. */
+export const BROKER: Field = { key: "broker", label: "特殊景品交換所の名前", hint: "特殊景品を買い取る交換所に名前があれば（空欄なら「交換所」として載せます）", kind: { type: "text", maxLength: 30 }, required: false, amendable: true }
 
 /**
  * A pachinko or pachislot parlor, as app.p-lens.jp's parlor list keeps one,
@@ -230,25 +258,8 @@ export const parlorSchema: SurveySchema = {
       required: false,
       amendable: true,
     },
-    {
-      key: "prizes",
-      label: "特殊景品",
-      hint: "コーナーごと、景品の種類ごとに 1 行。店舗で要る玉数・枚数と、交換所で実際に受け取った額を、分かるほうだけでも（例：4円パチンコ・小景品・280・1000）。交換所で受け取った額は、自分で交換して見たものだけを入れてください。人から聞いた額や、これから変わる予定の額は入れません",
-      kind: {
-        type: "rows",
-        maxCount: 24,
-        columns: [
-          { key: "game", label: "種別", kind: { type: "choice", options: ["パチンコ", "パチスロ"] }, required: true },
-          { key: "rate", label: "レート", kind: { type: "number", min: 0.1, max: 100, unit: "円" }, required: true },
-          { key: "name", label: "景品の名前", kind: { type: "text", maxLength: 10 }, required: true },
-          { key: "tokens", label: "要る玉数・枚数", kind: { type: "number", min: 1, max: MOST_TOKENS }, required: false },
-          { key: "yen", label: "交換所で受け取った額", kind: { type: "number", min: 1, max: MOST_YEN, unit: "円" }, required: false },
-        ],
-      },
-      required: false,
-      amendable: true,
-    },
-    { key: "broker", label: "特殊景品交換所の名前", hint: "特殊景品を買い取る交換所に名前があれば（空欄なら「交換所」として載せます）", kind: { type: "text", maxLength: 30 }, required: false, amendable: true },
+    PRIZES,
+    BROKER,
   ],
   refine: refineParlor,
   sameName: sameParlorName,
@@ -268,6 +279,9 @@ export const parlorSchema: SurveySchema = {
     "repeated-tier": "に同じコーナーが 2 回入っています",
     "prize-says-nothing": "は、要る玉数・枚数か交換所で受け取った額のどちらかを入れてください",
     "repeated-prize": "に同じコーナーの同じ景品が 2 回入っています",
+    "broker-says-nothing": "は、交換所で受け取った額のある「特殊景品」の行と一緒に入れてください",
+    "not-seen": "は、交換所で受け取った額を入れるときは「現地で確認した」にしてください",
+    "seen-ahead": "は、交換所で受け取った額を入れるときは今日までの日付にしてください",
     listed: "はすでに一覧にある店舗の名前です。同じ店舗なら一覧から選んで報告し、別の店舗なら支店名まで入れてください",
   },
 }

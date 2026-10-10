@@ -4,7 +4,8 @@ import { Ok } from "../src/core/result"
 import { uuidv7 } from "../src/core/uuidv7"
 import { japanese } from "../src/core/words"
 import type { IssueDraft } from "../src/outputs/issue"
-import { githubAppSink } from "../src/server/github-app"
+import type { SurveyRecord } from "../src/outputs/record"
+import { githubAppLineSink, githubAppSink } from "../src/server/github-app"
 import { surveyWorker, takeReport, type SurveyServer } from "../src/server/take"
 import { ADD, aedSchema, envelope, namedOnceSchema } from "./fixtures"
 
@@ -30,6 +31,8 @@ const serverWith = (filed: IssueDraft[], overrides: Partial<SurveyServer> = {}):
     filed.push(draft)
     return Ok(undefined)
   },
+  elsewhere: undefined,
+  alsoJudged: undefined,
   challenge: { type: "none" },
   limiter: undefined,
   outbound: fetch,
@@ -113,6 +116,41 @@ describe("takeReport", () => {
     expect(filed.length).toBe(1)
   })
 
+  test("hands a part of a report elsewhere where its survey keeps that part apart, both parts under the one id", async () => {
+    const here: IssueDraft[] = []
+    const there: SurveyRecord[] = []
+    const elsewhere: SurveyServer["elsewhere"] = {
+      sink: async (record) => {
+        there.push(record)
+        return Ok(undefined)
+      },
+      divide: (submission) =>
+        submission.observation.kind === "add"
+          ? { here: { ...submission, observation: { ...submission.observation, attributes: { name: "ここ" } } }, there: { ...submission, observation: { ...submission.observation, attributes: { name: "あちら" } } } }
+          : { here: undefined, there: submission },
+    }
+    const response = await takeReport(post(envelope(ADD)), serverWith(here, { elsewhere }), NOW, RANDOM)
+    const id = uuidv7(NOW.getTime(), RANDOM)
+    expect([response.status, here.map((draft) => draft.title), there.map((record) => [record.id, record.observation.kind === "add" && record.observation.attributes["name"]])]).toEqual([201, ["[新規] ここ"], [[id, "あちら"]]])
+    expect(here[0]?.body.includes(id)).toBe(true)
+    const none: IssueDraft[] = []
+    expect((await takeReport(post(envelope(GONE)), serverWith(none, { elsewhere }), NOW, RANDOM)).status).toBe(201)
+    expect([none.length, there.length]).toEqual([0, 2])
+  })
+
+  test("takes no report with a part for a place not set up, and files none of it", async () => {
+    const here: IssueDraft[] = []
+    const response = await takeReport(post(envelope(ADD)), serverWith(here, { elsewhere: { sink: undefined, divide: (submission) => ({ here: submission, there: submission }) } }), NOW, RANDOM)
+    expect([response.status, here.length]).toEqual([503, 0])
+  })
+
+  test("holds a report to the survey's rules that take the whole of it, and files nothing of one that breaks them", async () => {
+    const filed: IssueDraft[] = []
+    const alsoJudged: SurveyServer["alsoJudged"] = (submission, today) => (submission.provenance.observedOn === today ? [] : [{ field: "observedOn", reason: "not-today" }])
+    const response = await takeReport(post(envelope(ADD)), serverWith(filed, { alsoJudged }), NOW, RANDOM)
+    expect([response.status, await response.json(), filed.length]).toEqual([422, { type: "invalid", problems: [{ field: "observedOn", reason: "not-today" }] }, 0])
+  })
+
   test("says it is unavailable while no sink is set up", async () => {
     const response = await takeReport(post(envelope(ADD)), serverWith([], { sink: undefined }), NOW, RANDOM)
     expect(response.status).toBe(503)
@@ -184,5 +222,45 @@ describe("githubAppSink", () => {
   test("says so when the key cannot be read", async () => {
     const sink = githubAppSink({ appId: "1", installationId: "2", privateKey: "not a key", repo: "owner/list" }, fetch, () => 0)
     expect(await sink({ title: "t", body: "b", labels: [] })).toEqual({ ok: false, error: { type: "bad-key" } })
+  })
+})
+
+describe("githubAppLineSink", () => {
+  const keyed = async (): Promise<string> => {
+    const pair = (await crypto.subtle.generateKey({ name: "RSASSA-PKCS1-v1_5", modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" }, true, ["sign", "verify"])) as CryptoKeyPair
+    return pemOf((await crypto.subtle.exportKey("pkcs8", pair.privateKey)) as ArrayBuffer)
+  }
+
+  /** A repository with one file, refusing so many writes as if another writer had got in first. */
+  const repository = (file: { text: string; version: number }, conflicts: { left: number }): typeof fetch =>
+    (async (input: string | URL | Request, init?: RequestInit) => {
+      if (String(input).endsWith("/access_tokens")) return new Response(JSON.stringify({ token: "t0ken" }), { status: 201 })
+      if (String(input) !== "https://api.github.com/repos/owner/log/contents/data/seen.jsonl") return new Response("", { status: 404 })
+      if (init?.method !== "PUT") return new Headers(init?.headers).get("Accept") === "application/vnd.github.raw+json" ? new Response(file.text) : new Response(JSON.stringify({ sha: `v${String(file.version)}` }))
+      const sent = JSON.parse(String(init.body)) as { content: string; sha: string; message: string }
+      if (conflicts.left > 0 || sent.sha !== `v${String(file.version)}`) {
+        conflicts.left -= 1
+        return new Response("", { status: 409 })
+      }
+      file.text = new TextDecoder().decode(Uint8Array.from(atob(sent.content), (character) => character.charCodeAt(0)))
+      file.version += 1
+      return new Response(JSON.stringify({ commit: { message: sent.message } }))
+    }) as typeof fetch
+
+  test("sets lines down at the end of the file as it stands, in whatever script, each ended", async () => {
+    const file = { text: '{"seen":"前"}', version: 1 }
+    const sink = githubAppLineSink({ appId: "1", installationId: "2", privateKey: await keyed(), repo: "owner/log", path: "data/seen.jsonl" }, repository(file, { left: 0 }), () => 1_791_000_000)
+    expect(await sink(['{"seen":"小景品"}', '{"seen":"大景品"}'], "seen")).toEqual({ ok: true, value: undefined })
+    expect(file.text).toBe('{"seen":"前"}\n{"seen":"小景品"}\n{"seen":"大景品"}\n')
+  })
+
+  test("reads and writes again where another writer got in first, and gives up after a few tries", async () => {
+    const privateKey = await keyed()
+    const file = { text: "", version: 1 }
+    const sink = (conflicts: number) => githubAppLineSink({ appId: "1", installationId: "2", privateKey, repo: "owner/log", path: "data/seen.jsonl" }, repository(file, { left: conflicts }), () => 1_791_000_000)
+    expect(await sink(2)(["a"], "seen")).toEqual({ ok: true, value: undefined })
+    expect(file.text).toBe("a\n")
+    expect(await sink(3)(["b"], "seen")).toEqual({ ok: false, error: { type: "file-refused", status: 409 } })
+    expect(file.text).toBe("a\n")
   })
 })

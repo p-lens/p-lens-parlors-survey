@@ -2,7 +2,7 @@
 
 > **この日本語版が原本です。** [English](README.md) は翻訳で、内容が食い違うときは日本語版に従います。
 
-survey.p-lens.jp（P-Lens 店舗検索）：パチンコ・パチスロ店舗の一覧を誰でも検索でき、一覧への報告を受け付けるサイトです。店舗一覧にない店舗、一覧に座標がまだない店舗がどこにあるか、閉店した店舗、直すべき店名や読みを受け付けます。店舗のコーナーとレート（貸し、再プレイ）、特殊景品（景品の種類ごとに、店舗で要る玉数・枚数と、特殊景品交換所で実際に受け取った額）、特殊景品交換所の名前も、任意で受け付けます。報告はひとつですが、公開先は分かれます。コーナーと、景品に要る玉数・枚数は店舗一覧の `tiers.jsonl` に載ります。交換所は店舗とは別のものなので、そこでいくらになったかは別のリポジトリ [p-lens-brokers](https://github.com/p-lens/p-lens-brokers) に、レートとしてではなく、打ち手がその日に見た事実として載ります。
+survey.p-lens.jp（P-Lens 店舗検索）：パチンコ・パチスロ店舗の一覧を誰でも検索でき、一覧への報告を受け付けるサイトです。店舗一覧にない店舗、一覧に座標がまだない店舗がどこにあるか、閉店した店舗、直すべき店名や読みを受け付けます。店舗のコーナーとレート（貸し、再プレイ）、特殊景品（景品の種類ごとに、店舗で要る玉数・枚数と、特殊景品交換所で実際に受け取った額）、特殊景品交換所の名前も、任意で受け付けます。報告はひとつですが、公開先は分かれます。コーナーと、景品に要る玉数・枚数は店舗一覧の `tiers.jsonl` に載ります。交換所は店舗とは別のものなので、そこでいくらになったかは別のリポジトリ [p-lens-brokers](https://github.com/p-lens/p-lens-brokers) に、レートとしてではなく、打ち手がその日に見た事実として載ります。サーバーが報告を 2 つに分け、店舗一覧の issue には円を載せません。一覧にある店舗の観測は、報告を受け付けた時点で p-lens-brokers の `data/observations.jsonl` に 1 行ずつ足され、誰も確かめないままそのまま公開されます。
 
 [open-location-survey-kit](packages/open-location-survey-kit) に店舗のスキーマを与えたものです。キットは事実を一次情報として、出どころとともに、CC0 で集め、報告ひとつひとつを店舗一覧のリポジトリの GitHub issue として起票します。メンテナが確認して一覧に取り込み、一覧は ODbL のもとで公開されます。
 
@@ -111,6 +111,16 @@ App ID とインストールの ID は秘密ではありません。`apps/api/wr
 
 店舗一覧のリポジトリには、ラベル `survey`、`parlor`、`add`、`locate`、`gone`、`amend` を作っておきます。
 
+交換所での観測を p-lens-brokers に載せるには、**もうひとつ別の App** を作ります。こちらはファイルを書き足すので、issue を建てるだけの App とは分け、p-lens-brokers だけに入れます。
+
+作り方は上と同じで、違うのは次の 3 つです。
+
+- 4 の **Repository permissions** は、**Contents** と **Issues** を **Read and write** にする（Contents は観測の行を足すため、Issues は一覧にまだない店舗の観測のため）
+- 8 の **Only select repositories** では、p-lens-brokers だけを選ぶ
+- App ID とインストールの ID は `apps/api/wrangler.jsonc` の `GITHUB_BROKERS_APP_ID` と `GITHUB_BROKERS_INSTALLATION_ID` に、リポジトリの名前は `GITHUB_BROKERS_REPO` に書く
+
+p-lens-brokers には、ラベル `survey`、`broker`、`add` を作っておきます。この 3 つの値と、下で入れる秘密鍵のどれかが欠けていると、交換所で受け取った額のある報告は受け付けません。
+
 **2. Cloudflare Turnstile のサイトを作る**
 
 Cloudflare のダッシュボードの Turnstile で、`survey.p-lens.jp` のウィジェットを作ります。サイトキーは `apps/web/.env.production` の `VITE_TURNSTILE_SITE_KEY` に書きます（秘密ではありません）。シークレットキーは次で入れます。
@@ -124,7 +134,15 @@ bunx wrangler secret put GITHUB_APP_PRIVATE_KEY < ../../app.pkcs8.pem
 bunx wrangler secret put TURNSTILE_SECRET
 ```
 
-入れ終わったら、2 つの `.pem` は消します。
+p-lens-brokers の App の鍵も、同じように直して入れます。
+
+```sh
+openssl pkcs8 -topk8 -nocrypt -in ダウンロードしたもうひとつの鍵.pem -out brokers.pkcs8.pem
+cd apps/api
+bunx wrangler secret put GITHUB_BROKERS_APP_PRIVATE_KEY < ../../brokers.pkcs8.pem
+```
+
+入れ終わったら、`.pem` はどれも消します。
 
 **4. `main` に入れる**
 

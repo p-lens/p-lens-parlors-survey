@@ -18,6 +18,9 @@
   "vars": {
     // owner/name of the parlor list's repository, where issues are filed.
     "GITHUB_REPO": "p-lens/p-lens-parlors",
+    "GITHUB_BROKERS_REPO": "p-lens/p-lens-brokers",
+    "GITHUB_BROKERS_APP_ID": "5266714",
+    "GITHUB_BROKERS_INSTALLATION_ID": "170065165",
     "GITHUB_APP_ID": "5211278",
     "GITHUB_INSTALLATION_ID": "168517546",
     // Where the parlor list's JSONL is published, ending in a slash
