@@ -86,7 +86,6 @@ export interface Words {
     readonly noPositionYet: string
     readonly optional: string
     readonly addRow: string
-    readonly removeRow: string
   }
 }
 
@@ -197,6 +196,5 @@ export const japanese: Words = {
     noPositionYet: "まだ地図上の座標がわかっていません。",
     optional: "（任意）",
     addRow: "行を追加",
-    removeRow: "この行を削除",
   },
 }

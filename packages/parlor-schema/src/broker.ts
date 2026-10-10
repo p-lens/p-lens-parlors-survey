@@ -1,6 +1,7 @@
 import type { Attributes, AttributeValue, Problem, Row, Submission, SurveyRecord, SurveySchema } from "open-location-survey-kit"
 
-import { BROKER, PRIZES } from "./parlor"
+import { cornerCalled } from "./corners"
+import { PRIZES } from "./parlor"
 
 /**
  * What a player saw special prizes come to at a broker, where it cannot be
@@ -13,7 +14,7 @@ export const brokerSchema: SurveySchema = {
   noun: "交換所での観測",
   nameField: "name",
   observations: ["add", "amend"],
-  fields: [{ key: "name", label: "店名", kind: { type: "text", maxLength: 30 }, required: true, amendable: false }, PRIZES, BROKER],
+  fields: [{ key: "name", label: "店名", kind: { type: "text", maxLength: 30 }, required: true, amendable: false }, PRIZES],
 }
 
 const isRows = (value: AttributeValue | undefined): value is readonly Row[] => Array.isArray(value) && value.every((item) => typeof item === "object")
@@ -27,8 +28,7 @@ const without = (attributes: Attributes, keys: readonly string[]): Attributes =>
 
 /**
  * A parlor's report divided between its two keepers. What a broker paid —
- * the rows of its prizes that say a sum, and the broker's name — goes to
- * p-lens-brokers; everything the parlor itself posts stays, its prizes
+ * the rows of its prizes that say a sum — goes to p-lens-brokers; everything the parlor itself posts stays, its prizes
  * with what they take and no yen, so no sum is filed with the parlor. A
  * report that says no sum is the parlor's whole; one that says nothing
  * else is the broker's whole.
@@ -40,8 +40,8 @@ export const divideReport = (submission: Submission): { readonly there: Submissi
   const paid = isRows(prizes) ? prizes.filter((row) => row["yen"] !== undefined) : []
   if (paid.length === 0) return { there: undefined, here: submission }
   const taken = isRows(prizes) ? prizes.filter((row) => row["tokens"] !== undefined).map(withoutYen) : []
-  const kept = without({ ...observation.attributes, prizes: taken }, ["broker"])
-  const seen: Attributes = without({ prizes: paid, broker: observation.attributes["broker"] ?? "" }, observation.attributes["broker"] === undefined ? ["broker"] : [])
+  const kept = without({ ...observation.attributes, prizes: taken }, [])
+  const seen: Attributes = { prizes: paid }
   return observation.kind === "add"
     ? {
         here: { ...submission, observation: { ...observation, attributes: kept } },
@@ -53,20 +53,20 @@ export const divideReport = (submission: Submission): { readonly there: Submissi
       }
 }
 
-/** What a broker is called where a report names none. */
-const UNNAMED_BROKER = "交換所"
-
-/** The games as p-lens-brokers writes them, by what the form calls them. */
-const GAMES: Readonly<Record<string, string>> = { パチンコ: "pachinko", パチスロ: "pachislot" }
+/**
+ * What a broker is called. A report does not name it: whoever buys a
+ * parlor's special prizes is, to the player, the 交換所.
+ */
+const BROKER = "交換所"
 
 /** One thing seen, as a line of p-lens-brokers' observations: its fields in the order its README gives them. */
-const lineOf = (record: SurveyRecord, parlor: string, broker: string, row: Row): string =>
+const lineOf = (record: SurveyRecord, parlor: string, row: Row): string =>
   JSON.stringify({
     parlor,
     observedOn: record.provenance.observedOn,
-    broker,
-    game: GAMES[String(row["game"])],
-    tier: `${String(row["rate"])}円`,
+    broker: BROKER,
+    game: cornerCalled(row["corner"])?.game,
+    tier: cornerCalled(row["corner"])?.tier,
     prize: row["name"],
     tokens: row["tokens"],
     yen: row["yen"],
@@ -85,8 +85,7 @@ export const observationLines = (record: SurveyRecord): readonly string[] => {
   const observation = record.observation
   if (observation.kind !== "amend") return []
   const prizes = observation.attributes["prizes"]
-  const broker = observation.attributes["broker"]
-  return (isRows(prizes) ? prizes : []).map((row) => lineOf(record, observation.subject.id, typeof broker === "string" ? broker : UNNAMED_BROKER, row))
+  return (isRows(prizes) ? prizes : []).filter((row) => cornerCalled(row["corner"]) !== undefined).map((row) => lineOf(record, observation.subject.id, row))
 }
 
 /** How far past the server's today a day seen may be: the day where the observer stands may be a day ahead of UTC. */

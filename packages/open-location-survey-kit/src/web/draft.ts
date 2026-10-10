@@ -39,6 +39,21 @@ const asDraftValue = (value: AttributeValue | undefined): DraftValue | undefined
 
 const emptyValue = (field: Field): DraftValue => (field.kind.type === "flag" ? false : field.kind.type === "rows" ? [] : "")
 
+/**
+ * A row after one of its cells was changed. A choice that fills other
+ * cells writes them: the usual value for what was chosen, into a cell left
+ * empty or still holding what the choice before wrote — never over what a
+ * person typed. Choosing nothing takes back what the choice had written.
+ */
+export const rowAfter = (columns: readonly Column[], row: RowDraft, key: string, value: string): RowDraft => {
+  const fills = columns.find((column) => column.key === key)?.fills
+  if (fills === undefined) return { ...row, [key]: value }
+  const before = fills[row[key] ?? ""] ?? {}
+  const after = fills[value] ?? {}
+  const written = [...new Set([...Object.keys(before), ...Object.keys(after)])].filter((cell) => (row[cell] ?? "") === "" || row[cell] === before[cell])
+  return { ...row, [key]: value, ...Object.fromEntries(written.map((cell) => [cell, after[cell] ?? ""] as const)) }
+}
+
 /** A row of the form as it is sent: each cell by its column's kind, an empty cell saying nothing. */
 const sentRow = (columns: readonly Column[], row: RowDraft): Readonly<Record<string, unknown>> =>
   Object.fromEntries(

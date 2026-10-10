@@ -1,5 +1,5 @@
 import type { Observation, Position, Source } from "../core/observation"
-import type { Attributes, AttributeValue, Field, Row, SurveySchema } from "../core/schema"
+import { columnLabel, type Attributes, type AttributeValue, type Field, type Row, type SurveySchema } from "../core/schema"
 import type { Words } from "../core/words"
 import type { SurveyRecord } from "./record"
 
@@ -12,7 +12,7 @@ export const valueText = (value: AttributeValue): string => (isRows(value) ? JSO
 
 /** A row as a person reads it: each cell it has under its column's label, in the columns' order. */
 const rowText = (row: Row, field: Field): string =>
-  (field.kind.type === "rows" ? field.kind.columns : []).flatMap((column) => (row[column.key] === undefined ? [] : [`${column.label} ${String(row[column.key])}`])).join("・")
+  (field.kind.type === "rows" ? field.kind.columns : []).flatMap((column) => (row[column.key] === undefined ? [] : [`${columnLabel(column, row)} ${String(row[column.key])}`])).join("・")
 
 /** A field's value as a person reads it; a table's rows one after another, each by its columns' labels. */
 const fieldText = (field: Field, value: AttributeValue): string => (isRows(value) ? value.map((row) => rowText(row, field)).join(" ／ ") : valueText(value))

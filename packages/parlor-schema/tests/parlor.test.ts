@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { readAttributes } from "open-location-survey-kit"
+import { columnLabel, readAttributes, type Column } from "open-location-survey-kit"
 
 import type { Submission, SurveyRecord } from "open-location-survey-kit"
 
@@ -56,34 +56,36 @@ describe("parlorSchema", () => {
     expect(parlorSchema.alsoNamedBy).toEqual(["officialName"])
   })
 
-  test("takes a parlor's corners by rate, each saying as much as is known, on a new parlor or as a correction", () => {
-    const tiers = [
-      { game: "パチンコ", rate: 4, rental: 250, replayPaidOut: 125, replayDeducted: 133 },
-      { game: "パチンコ", rate: 1 },
-      { game: "パチスロ", rate: 20, rental: 50 },
-    ]
+  test("takes a parlor's corners, each chosen from the corners there are and saying as much as is known, on a new parlor or as a correction", () => {
+    const tiers = [{ corner: "4円パチンコ", rental: 250, replayPaidOut: 125, replayDeducted: 133 }, { corner: "1円パチンコ" }, { corner: "20円スロット", rental: 50 }]
     expect(readAttributes(parlorSchema, { ...PARLOR, tiers }, "add")).toMatchObject({ ok: true, value: { tiers } })
     expect(readAttributes(parlorSchema, { tiers }, "amend")).toEqual({ ok: true, value: { tiers } })
   })
 
-  test("refuses corners that do not read as corners: no game or rate, a count not whole, half a replay, one corner twice", () => {
-    expect(reasons({ tiers: [{ rate: 4 }] }, "amend")).toEqual(["tiers:incomplete-row"])
-    expect(reasons({ tiers: [{ game: "アレンジボール", rate: 4 }] }, "amend")).toEqual(["tiers:invalid-row"])
-    expect(reasons({ tiers: [{ game: "パチンコ", rate: 4, rental: 250.5 }] }, "amend")).toEqual(["tiers:not-whole"])
-    expect(reasons({ tiers: [{ game: "パチンコ", rate: 4, replayPaidOut: 125 }] }, "amend")).toEqual(["tiers:replay-half"])
-    expect(reasons({ tiers: [{ game: "パチンコ", rate: 4 }, { game: "パチンコ", rate: 4, rental: 250 }] }, "amend")).toEqual(["tiers:repeated-tier"])
+  test("refuses corners that do not read as corners: none chosen, one there is not, a count not whole, half a replay, one corner twice", () => {
+    expect(reasons({ tiers: [{ rental: 250 }] }, "amend")).toEqual(["tiers:incomplete-row"])
+    expect(reasons({ tiers: [{ corner: "40円スロット" }] }, "amend")).toEqual(["tiers:invalid-row"])
+    expect(reasons({ tiers: [{ corner: "4円パチンコ", rental: 250.5 }] }, "amend")).toEqual(["tiers:not-whole"])
+    expect(reasons({ tiers: [{ corner: "4円パチンコ", replayPaidOut: 125 }] }, "amend")).toEqual(["tiers:replay-half"])
+    expect(reasons({ tiers: [{ corner: "4円パチンコ" }, { corner: "4円パチンコ", rental: 250 }] }, "amend")).toEqual(["tiers:repeated-tier"])
   })
 
-  test("takes a parlor's special prizes a corner and a prize a row: what the parlor takes for each, and what the broker paid, either alone", () => {
+  test("writes what ¥1,000 usually rents as a corner is chosen, and calls the count by the corner's game", () => {
+    const [corner, rental] = (parlorSchema.fields.find((field) => field.key === "tiers")?.kind as { readonly columns: readonly Column[] }).columns
+    expect([corner?.fills?.["4円パチンコ"], corner?.fills?.["1円パチンコ"], corner?.fills?.["20円スロット"], corner?.fills?.["5円スロット"], corner?.fills?.["0.2円パチンコ"]]).toEqual([{ rental: "250" }, { rental: "1000" }, { rental: "50" }, { rental: "200" }, { rental: "5000" }])
+    expect(rental === undefined ? [] : [columnLabel(rental, {}), columnLabel(rental, { corner: "4円パチンコ" }), columnLabel(rental, { corner: "20円スロット" })]).toEqual(["貸し数", "貸玉数", "貸メダル数"])
+  })
+
+  test("takes a parlor's special prizes a prize of a corner a row: what the parlor takes for each, and what the broker paid, either alone", () => {
     const prizes = [
-      { game: "パチンコ", rate: 4, name: "大景品", tokens: 1400, yen: 5000 },
-      { game: "パチンコ", rate: 4, name: "小景品", tokens: 140 },
-      { game: "パチスロ", rate: 20, name: "小景品", yen: 500 },
+      { name: "大景品", corner: "4円パチンコ", tokens: 1400, yen: 5000 },
+      { name: "小景品", corner: "4円パチンコ", tokens: 140 },
+      { name: "小景品", corner: "20円スロット", yen: 500 },
     ]
     expect(readAttributes(parlorSchema, { prizes }, "amend")).toEqual({ ok: true, value: { prizes } })
-    expect(reasons({ prizes: [{ game: "パチンコ", rate: 4, name: "大景品" }] }, "amend")).toEqual(["prizes:prize-says-nothing"])
-    expect(reasons({ prizes: [{ game: "パチンコ", rate: 4, name: "大景品", tokens: 1400.5 }] }, "amend")).toEqual(["prizes:not-whole"])
-    expect(reasons({ prizes: [{ game: "パチンコ", rate: 4, name: "大景品", tokens: 1400 }, { game: "パチンコ", rate: 4, name: "大景品", yen: 5000 }] }, "amend")).toEqual(["prizes:repeated-prize"])
+    expect(reasons({ prizes: [{ name: "大景品", corner: "4円パチンコ" }] }, "amend")).toEqual(["prizes:prize-says-nothing"])
+    expect(reasons({ prizes: [{ name: "大景品", corner: "4円パチンコ", tokens: 1400.5 }] }, "amend")).toEqual(["prizes:not-whole"])
+    expect(reasons({ prizes: [{ name: "大景品", corner: "4円パチンコ", tokens: 1400 }, { name: "大景品", corner: "4円パチンコ", yen: 5000 }] }, "amend")).toEqual(["prizes:repeated-prize"])
   })
 
   test("takes a report of a day up to half a year ahead: a change posted before it comes", () => {
@@ -96,22 +98,22 @@ const SEEN: Submission["provenance"] = { source: { kind: "on-site" }, observedOn
 const SUBJECT = { id: "osm:way/1", name: "マルハン梅田店" }
 
 const PRIZES = [
-  { game: "パチンコ", rate: 4, name: "小景品", tokens: 280, yen: 1000 },
-  { game: "パチンコ", rate: 4, name: "大景品", tokens: 1400 },
-  { game: "パチスロ", rate: 20, name: "小景品", yen: 500 },
+  { name: "小景品", corner: "4円パチンコ", tokens: 280, yen: 1000 },
+  { name: "大景品", corner: "4円パチンコ", tokens: 1400 },
+  { name: "小景品", corner: "20円スロット", yen: 500 },
 ]
 
 const amending = (attributes: Record<string, unknown>): Submission => ({ observation: { kind: "amend", subject: SUBJECT, attributes: attributes as never }, provenance: SEEN })
 
 describe("a parlor's report divided between the parlor and the broker", () => {
-  test("keeps with the parlor what it takes for each prize and no yen, and gives the broker the rows that say a sum, with its name", () => {
-    const { here, there } = divideReport(amending({ reading: "まるはんうめだてん", prizes: PRIZES, broker: "大阪景品センター" }))
+  test("keeps with the parlor what it takes for each prize and no yen, and gives the broker the rows that say a sum", () => {
+    const { here, there } = divideReport(amending({ reading: "まるはんうめだてん", prizes: PRIZES }))
     expect(here?.observation).toEqual({
       kind: "amend",
       subject: SUBJECT,
-      attributes: { reading: "まるはんうめだてん", prizes: [{ game: "パチンコ", rate: 4, name: "小景品", tokens: 280 }, { game: "パチンコ", rate: 4, name: "大景品", tokens: 1400 }] },
+      attributes: { reading: "まるはんうめだてん", prizes: [{ name: "小景品", corner: "4円パチンコ", tokens: 280 }, { name: "大景品", corner: "4円パチンコ", tokens: 1400 }] },
     } as never)
-    expect(there?.observation).toEqual({ kind: "amend", subject: SUBJECT, attributes: { prizes: [PRIZES[0], PRIZES[2]], broker: "大阪景品センター" } } as never)
+    expect(there?.observation).toEqual({ kind: "amend", subject: SUBJECT, attributes: { prizes: [PRIZES[0], PRIZES[2]] } } as never)
   })
 
   test("is the parlor's whole where it says no sum, and the broker's whole where it says nothing else", () => {
@@ -124,7 +126,7 @@ describe("a parlor's report divided between the parlor and the broker", () => {
   test("names a new parlor to the broker by its name, with where it was placed", () => {
     const position = { latitude: 34.7, longitude: 135.5, method: "gps" as const, basemap: undefined }
     const { here, there } = divideReport({ observation: { kind: "add", attributes: { name: "新規店梅田", prizes: [PRIZES[0]] } as never, position }, provenance: SEEN })
-    expect(here?.observation).toEqual({ kind: "add", attributes: { name: "新規店梅田", prizes: [{ game: "パチンコ", rate: 4, name: "小景品", tokens: 280 }] }, position } as never)
+    expect(here?.observation).toEqual({ kind: "add", attributes: { name: "新規店梅田", prizes: [{ name: "小景品", corner: "4円パチンコ", tokens: 280 }] }, position } as never)
     expect(there?.observation).toEqual({ kind: "add", attributes: { name: "新規店梅田", prizes: [PRIZES[0]] }, position } as never)
   })
 })
@@ -132,7 +134,7 @@ describe("a parlor's report divided between the parlor and the broker", () => {
 describe("what was seen at a broker, as lines of the observations", () => {
   const record = (submission: Submission): SurveyRecord => ({ id: "0192f0a0-0000-7000-8000-000000000001", survey: "parlor", takenAt: "2026-10-11T09:00:00.000Z", license: "CC0-1.0", ...submission })
 
-  test("is a line a prize paid for, under the report's id and the observer's pseudonym, the broker called 交換所 where none is named", () => {
+  test("is a line a prize paid for, under the report's id and the observer's pseudonym, its corner as the lists write one and the broker called 交換所", () => {
     const there = divideReport(amending({ prizes: PRIZES })).there as Submission
     expect(observationLines(record(there)).map((line) => JSON.parse(line) as unknown)).toEqual([
       { parlor: "osm:way/1", observedOn: "2026-10-11", broker: "交換所", game: "pachinko", tier: "4円", prize: "小景品", tokens: 280, yen: 1000, submission: "0192f0a0-0000-7000-8000-000000000001", observer: SEEN.contributor },
@@ -156,11 +158,6 @@ describe("a report that says what a broker paid", () => {
       { field: "observedOn", reason: "seen-ahead" },
     ])
     expect(brokerProblems({ ...amending({ prizes: [PRIZES[1]] }), provenance: { ...SEEN, observedOn: "2026-11-01" } }, "2026-10-11")).toEqual([])
-  })
-
-  test("names the broker only with a sum received", () => {
-    expect(reasons({ prizes: [PRIZES[1]], broker: "大阪景品センター" }, "amend")).toEqual(["broker:broker-says-nothing"])
-    expect(reasons({ prizes: [PRIZES[0]], broker: "大阪景品センター" }, "amend")).toEqual([])
   })
 })
 

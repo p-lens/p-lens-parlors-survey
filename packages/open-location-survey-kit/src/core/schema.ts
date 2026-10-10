@@ -19,7 +19,27 @@ export interface Column {
   readonly kind: ColumnKind
   /** Whether a row must have it. */
   readonly required: boolean
+  /** What its empty cell shows in the form: an example of what goes there. */
+  readonly placeholder?: string
+  /**
+   * Other words for its label, by what another column of the row holds: a
+   * count is of one thing in a row of this kind and of another in a row of
+   * that. A row whose other column holds none of them keeps `label`.
+   */
+  readonly labelBy?: { readonly column: string; readonly labels: Readonly<Record<string, string>> }
+  /**
+   * What choosing each of its options writes into other cells of the row,
+   * by their column: the usual value, there to be typed over where the
+   * thing differs. Only a cell left empty, or still holding what another
+   * option wrote, is written.
+   */
+  readonly fills?: Readonly<Record<string, Readonly<Record<string, string>>>>
+  /** The group it is put away with: columns few rows need, out of sight in the form until asked for. A key of the field's `tucks`. */
+  readonly tucked?: string
 }
+
+/** A column's label in one row: its other words where the row's other column calls for them. */
+export const columnLabel = (column: Column, row: Readonly<Record<string, unknown>>): string => column.labelBy?.labels[String(row[column.labelBy.column] ?? "")] ?? column.label
 
 /**
  * What kind of value a field takes. `kana` is a reading in hiragana, katakana
@@ -35,7 +55,15 @@ export type FieldKind =
   | { readonly type: "words"; readonly maxCount: number; readonly maxLength: number }
   | { readonly type: "number"; readonly min?: number; readonly max?: number; readonly unit?: string }
   | { readonly type: "flag" }
-  | { readonly type: "rows"; readonly columns: readonly Column[]; readonly maxCount: number }
+  | {
+      readonly type: "rows"
+      readonly columns: readonly Column[]
+      readonly maxCount: number
+      /** What the button that adds a row says, where the form's own words for it do not say enough. */
+      readonly add?: string
+      /** The groups of columns put away until asked for, by key: what the button that brings one out says, and what the one that puts it away again is called. */
+      readonly tucks?: Readonly<Record<string, { readonly add: string; readonly away: string }>>
+    }
   | { readonly type: "photo" }
 
 export interface Field {

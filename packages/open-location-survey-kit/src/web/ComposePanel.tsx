@@ -1,16 +1,16 @@
-import { For, Index, Match, Show, Switch, type JSX } from "solid-js"
+import { createSignal, For, Index, Match, Show, Switch, type JSX } from "solid-js"
 
 import { problemText } from "../core/problem-text"
-import type { Column, Problem, Field } from "../core/schema"
+import { columnLabel, type Column, type Problem, type Field } from "../core/schema"
 import type { SurveyConfig } from "./config"
 import { Button, Check, CloseButton, FieldBox, FieldGroup, inputClass, TextInput } from "./controls"
-import { dayAfter, type Draft, type DraftValue, type RowDraft, type SourceDraft } from "./draft"
+import { dayAfter, rowAfter, type Draft, type DraftValue, type RowDraft, type SourceDraft } from "./draft"
 import { Turnstile } from "./Turnstile"
 
 /** Where a report being written stands: being edited, on its way, or refused with what to fix. */
 export type Sending = { readonly type: "editing" } | { readonly type: "sending" } | { readonly type: "failed"; readonly message: string; readonly problems: readonly Problem[] }
 
-const FieldInput = (props: { readonly field: Field; readonly value: DraftValue | undefined; readonly onChange: (value: DraftValue) => void }): JSX.Element => {
+const FieldInput = (props: { readonly field: Field; readonly value: DraftValue | undefined; readonly placeholder?: string | undefined; readonly onChange: (value: DraftValue) => void }): JSX.Element => {
   const text = (): string => (typeof props.value === "string" ? props.value : "")
   return (
     <Switch>
@@ -26,55 +26,84 @@ const FieldInput = (props: { readonly field: Field; readonly value: DraftValue |
         <input type="checkbox" class="h-4 w-4 accent-accent" checked={props.value === true} onChange={(event) => props.onChange(event.currentTarget.checked)} />
       </Match>
       <Match when={props.field.kind.type === "number" ? props.field.kind : undefined}>
-        {(kind) => <TextInput type="number" inputMode="decimal" min={kind().min} max={kind().max} value={text()} onInput={(event) => props.onChange(event.currentTarget.value)} />}
+        {(kind) => <TextInput type="number" inputMode="decimal" min={kind().min} max={kind().max} placeholder={props.placeholder} value={text()} onInput={(event) => props.onChange(event.currentTarget.value)} />}
       </Match>
       <Match when={props.field.kind.type === "text" || props.field.kind.type === "kana" || props.field.kind.type === "words"}>
-        <TextInput value={text()} onInput={(event) => props.onChange(event.currentTarget.value)} />
+        <TextInput placeholder={props.placeholder} value={text()} onInput={(event) => props.onChange(event.currentTarget.value)} />
       </Match>
     </Switch>
   )
 }
 
-/** A column's label over its cell, with its unit. */
-const columnLabel = (column: Column): string => `${column.label}${column.kind.type === "number" && column.kind.unit !== undefined ? `（${column.kind.unit}）` : ""}`
+/** A column's label over its cell in one row, with its unit. */
+const cellLabel = (column: Column, row: RowDraft): string => `${columnLabel(column, row)}${column.kind.type === "number" && column.kind.unit !== undefined ? `（${column.kind.unit}）` : ""}`
+
+type RowsKind = Extract<Field["kind"], { readonly type: "rows" }>
+
+/** One cell of a row under its label. */
+const Cell = (props: { readonly column: Column; readonly row: RowDraft; readonly onChange: (value: string) => void }): JSX.Element => (
+  <FieldBox label={cellLabel(props.column, props.row)}>
+    <FieldInput field={{ ...props.column, amendable: false }} value={props.row[props.column.key] ?? ""} placeholder={props.column.placeholder} onChange={(value) => props.onChange(typeof value === "string" ? value : "")} />
+  </FieldBox>
+)
 
 /**
- * A table a person adds rows to: each row its columns' cells, put away with
- * the ✕ at its corner, and one more row added below until the table holds
- * as many as it may. Rows are kept by where they stand, so typing in a cell
- * rebuilds nothing.
+ * A table a person adds rows to. Each row is its columns' cells two
+ * abreast, so a row of four is two lines on a phone; the columns few rows
+ * need are put away behind a small button each group, brought out by it and
+ * put away again, emptied, by the ✕ beside them. A row has nothing to
+ * remove it by: one left empty is not sent. One more row is added below
+ * until the table holds as many as it may. Rows are kept by where they
+ * stand, so typing in a cell rebuilds nothing.
  */
-const RowsInput = (props: {
-  readonly columns: readonly Column[]
-  readonly maxCount: number
-  readonly rows: readonly RowDraft[]
-  readonly addRow: string
-  readonly removeRow: string
-  readonly onChange: (rows: readonly RowDraft[]) => void
-}): JSX.Element => {
-  const setCell = (at: number, key: string, value: string): void => props.onChange(props.rows.map((row, index) => (index === at ? { ...row, [key]: value } : row)))
+const RowsInput = (props: { readonly kind: RowsKind; readonly rows: readonly RowDraft[]; readonly addRow: string; readonly onChange: (rows: readonly RowDraft[]) => void }): JSX.Element => {
+  const [brought, setBrought] = createSignal<readonly string[]>([])
+  const columns = (): readonly Column[] => props.kind.columns
+  const setRow = (at: number, changed: RowDraft): void => props.onChange(props.rows.map((row, index) => (index === at ? changed : row)))
+  const tuckedIn = (group: string): readonly Column[] => columns().filter((column) => column.tucked === group)
+  const out = (at: number, group: string, row: RowDraft): boolean => brought().includes(`${String(at)}:${group}`) || tuckedIn(group).some((column) => (row[column.key] ?? "") !== "")
+  const putAway = (at: number, group: string, row: RowDraft): void => {
+    setBrought(brought().filter((key) => key !== `${String(at)}:${group}`))
+    setRow(at, { ...row, ...Object.fromEntries(tuckedIn(group).map((column) => [column.key, ""] as const)) })
+  }
   return (
     <div class="flex flex-col gap-2">
       <Index each={props.rows}>
         {(row, at) => (
-          <div class="flex items-start gap-1 rounded-md border border-border p-2">
-            <div class="grid min-w-0 flex-1 grid-cols-2 gap-2 sm:grid-cols-3">
-              <For each={props.columns}>
-                {(column) => (
-                  <FieldBox label={columnLabel(column)}>
-                    <FieldInput field={{ ...column, amendable: false }} value={row()[column.key] ?? ""} onChange={(value) => setCell(at, column.key, typeof value === "string" ? value : "")} />
-                  </FieldBox>
-                )}
+          <div class="flex flex-col gap-2 rounded-md border border-border p-2">
+            <div class="grid grid-cols-2 gap-2">
+              <For each={columns().filter((column) => column.tucked === undefined)}>
+                {(column) => <Cell column={column} row={row()} onChange={(value) => setRow(at, rowAfter(columns(), row(), column.key, value))} />}
               </For>
             </div>
-            <CloseButton label={props.removeRow} onClick={() => props.onChange(props.rows.filter((_, index) => index !== at))} />
+            <For each={Object.entries(props.kind.tucks ?? {})}>
+              {([group, words]) => (
+                <Show
+                  when={out(at, group, row())}
+                  fallback={
+                    <div>
+                      <button type="button" class="text-xs text-accent underline underline-offset-2" onClick={() => setBrought([...brought(), `${String(at)}:${group}`])}>
+                        {words.add}
+                      </button>
+                    </div>
+                  }
+                >
+                  <div class="flex items-end gap-1">
+                    <div class="grid min-w-0 flex-1 grid-cols-2 gap-2">
+                      <For each={tuckedIn(group)}>{(column) => <Cell column={column} row={row()} onChange={(value) => setRow(at, rowAfter(columns(), row(), column.key, value))} />}</For>
+                    </div>
+                    <CloseButton label={words.away} onClick={() => putAway(at, group, row())} />
+                  </div>
+                </Show>
+              )}
+            </For>
           </div>
         )}
       </Index>
-      <Show when={props.rows.length < props.maxCount}>
+      <Show when={props.rows.length < props.kind.maxCount}>
         <div>
           <Button tone="outline" size="compact" onClick={() => props.onChange([...props.rows, {}])}>
-            {props.addRow}
+            {props.kind.add ?? props.addRow}
           </Button>
         </div>
       </Show>
@@ -190,14 +219,7 @@ export const ComposePanel = (props: {
           >
             {(kind) => (
               <FieldGroup label={labelOf(field, props.draft, words.ui.optional)} hint={field.hint}>
-                <RowsInput
-                  columns={kind().columns}
-                  maxCount={kind().maxCount}
-                  rows={((value) => (typeof value === "object" ? value : []))(props.draft.values[field.key])}
-                  addRow={words.ui.addRow}
-                  removeRow={words.ui.removeRow}
-                  onChange={(rows) => setValue(field.key, rows)}
-                />
+                <RowsInput kind={kind()} rows={((value) => (typeof value === "object" ? value : []))(props.draft.values[field.key])} addRow={words.ui.addRow} onChange={(rows) => setValue(field.key, rows)} />
               </FieldGroup>
             )}
           </Show>

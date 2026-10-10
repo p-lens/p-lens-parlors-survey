@@ -2,8 +2,8 @@ import { describe, expect, test } from "bun:test"
 
 import type { ListedSubject } from "../src/core/listed"
 import { readEnvelope } from "../src/core/observation"
-import type { Field } from "../src/core/schema"
-import { dayAfter, draftFor, envelopeOf, localDay, needsPosition } from "../src/web/draft"
+import { columnLabel, type Column, type Field } from "../src/core/schema"
+import { dayAfter, draftFor, envelopeOf, localDay, needsPosition, rowAfter } from "../src/web/draft"
 import { copyrightIn, repositoryPage } from "../src/vite/credits"
 import { clampSize } from "../src/web/frame/resize"
 import { blocksOfMarkdown } from "../src/web/markdown"
@@ -81,6 +81,24 @@ describe("drafts", () => {
     const filled = { ...draft, values: { ...draft.values, hours: [{ day: "平日", until: " 22 " }, {}, { day: "休日", until: "" }] } }
     const read = readEnvelope(envelopeOf(schema, filled, CONTRIBUTOR, undefined), { ...JUDGING, schema })
     expect(read.ok ? read.value.submission.observation : undefined).toEqual({ kind: "amend", subject: { id: "node/1", name: "梅田駅" }, attributes: { hours: [{ day: "平日", until: 22 }, { day: "休日" }] } })
+  })
+
+  test("a choice writes the usual value into the cells it fills, never over what was typed, and takes it back when nothing is chosen", () => {
+    const columns: readonly Column[] = [
+      { key: "size", label: "大きさ", kind: { type: "choice", options: ["大", "小"] }, required: true, fills: { 大: { price: "500" }, 小: { price: "300" } } },
+      { key: "price", label: "値段", kind: { type: "number" }, required: false },
+    ]
+    const big = rowAfter(columns, {}, "size", "大")
+    expect(big).toEqual({ size: "大", price: "500" })
+    expect(rowAfter(columns, big, "size", "小")).toEqual({ size: "小", price: "300" })
+    const typed = rowAfter(columns, big, "price", "480")
+    expect(rowAfter(columns, typed, "size", "小")).toEqual({ size: "小", price: "480" })
+    expect(rowAfter(columns, big, "size", "")).toEqual({ size: "", price: "" })
+  })
+
+  test("a column is called by other words where the row's other column calls for them", () => {
+    const count: Column = { key: "count", label: "数", kind: { type: "number" }, required: false, labelBy: { column: "of", labels: { 本: "本数", 枚: "枚数" } } }
+    expect([columnLabel(count, {}), columnLabel(count, { of: "本" }), columnLabel(count, { of: "個" })]).toEqual(["数", "本数", "数"])
   })
 
   test("the last day a report may be of is so many days on, across a month's end", () => {
