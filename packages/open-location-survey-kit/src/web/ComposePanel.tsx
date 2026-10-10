@@ -1,10 +1,10 @@
-import { For, Match, Show, Switch, type JSX } from "solid-js"
+import { For, Index, Match, Show, Switch, type JSX } from "solid-js"
 
 import { problemText } from "../core/problem-text"
-import type { Problem, Field } from "../core/schema"
+import type { Column, Problem, Field } from "../core/schema"
 import type { SurveyConfig } from "./config"
-import { Button, Check, FieldBox, inputClass, TextInput } from "./controls"
-import type { Draft, DraftValue, SourceDraft } from "./draft"
+import { Button, Check, CloseButton, FieldBox, FieldGroup, inputClass, TextInput } from "./controls"
+import { dayAfter, type Draft, type DraftValue, type RowDraft, type SourceDraft } from "./draft"
 import { Turnstile } from "./Turnstile"
 
 /** Where a report being written stands: being edited, on its way, or refused with what to fix. */
@@ -32,6 +32,53 @@ const FieldInput = (props: { readonly field: Field; readonly value: DraftValue |
         <TextInput value={text()} onInput={(event) => props.onChange(event.currentTarget.value)} />
       </Match>
     </Switch>
+  )
+}
+
+/** A column's label over its cell, with its unit. */
+const columnLabel = (column: Column): string => `${column.label}${column.kind.type === "number" && column.kind.unit !== undefined ? `（${column.kind.unit}）` : ""}`
+
+/**
+ * A table a person adds rows to: each row its columns' cells, put away with
+ * the ✕ at its corner, and one more row added below until the table holds
+ * as many as it may. Rows are kept by where they stand, so typing in a cell
+ * rebuilds nothing.
+ */
+const RowsInput = (props: {
+  readonly columns: readonly Column[]
+  readonly maxCount: number
+  readonly rows: readonly RowDraft[]
+  readonly addRow: string
+  readonly removeRow: string
+  readonly onChange: (rows: readonly RowDraft[]) => void
+}): JSX.Element => {
+  const setCell = (at: number, key: string, value: string): void => props.onChange(props.rows.map((row, index) => (index === at ? { ...row, [key]: value } : row)))
+  return (
+    <div class="flex flex-col gap-2">
+      <Index each={props.rows}>
+        {(row, at) => (
+          <div class="flex items-start gap-1 rounded-md border border-border p-2">
+            <div class="grid min-w-0 flex-1 grid-cols-2 gap-2 sm:grid-cols-3">
+              <For each={props.columns}>
+                {(column) => (
+                  <FieldBox label={columnLabel(column)}>
+                    <FieldInput field={{ ...column, amendable: false }} value={row()[column.key] ?? ""} onChange={(value) => setCell(at, column.key, typeof value === "string" ? value : "")} />
+                  </FieldBox>
+                )}
+              </For>
+            </div>
+            <CloseButton label={props.removeRow} onClick={() => props.onChange(props.rows.filter((_, index) => index !== at))} />
+          </div>
+        )}
+      </Index>
+      <Show when={props.rows.length < props.maxCount}>
+        <div>
+          <Button tone="outline" size="compact" onClick={() => props.onChange([...props.rows, {}])}>
+            {props.addRow}
+          </Button>
+        </div>
+      </Show>
+    </div>
   )
 }
 
@@ -133,9 +180,27 @@ export const ComposePanel = (props: {
 
       <For each={fieldsFor(props.config, props.draft)}>
         {(field) => (
-          <FieldBox label={labelOf(field, props.draft, words.ui.optional)} hint={field.hint}>
-            <FieldInput field={field} value={props.draft.values[field.key]} onChange={(value) => setValue(field.key, value)} />
-          </FieldBox>
+          <Show
+            when={field.kind.type === "rows" ? field.kind : undefined}
+            fallback={
+              <FieldBox label={labelOf(field, props.draft, words.ui.optional)} hint={field.hint}>
+                <FieldInput field={field} value={props.draft.values[field.key]} onChange={(value) => setValue(field.key, value)} />
+              </FieldBox>
+            }
+          >
+            {(kind) => (
+              <FieldGroup label={labelOf(field, props.draft, words.ui.optional)} hint={field.hint}>
+                <RowsInput
+                  columns={kind().columns}
+                  maxCount={kind().maxCount}
+                  rows={((value) => (typeof value === "object" ? value : []))(props.draft.values[field.key])}
+                  addRow={words.ui.addRow}
+                  removeRow={words.ui.removeRow}
+                  onChange={(rows) => setValue(field.key, rows)}
+                />
+              </FieldGroup>
+            )}
+          </Show>
         )}
       </For>
 
@@ -149,7 +214,7 @@ export const ComposePanel = (props: {
       <SourceFields config={props.config} source={props.draft.source} onChange={(source) => set({ source })} />
 
       <FieldBox label={words.observedOn}>
-        <TextInput type="date" max={props.today} value={props.draft.observedOn} onInput={(event) => set({ observedOn: event.currentTarget.value })} />
+        <TextInput type="date" max={dayAfter(props.today, props.config.schema.observedAhead ?? 0)} value={props.draft.observedOn} onInput={(event) => set({ observedOn: event.currentTarget.value })} />
       </FieldBox>
 
       <div class="flex flex-col gap-2 rounded-md border border-border p-3">

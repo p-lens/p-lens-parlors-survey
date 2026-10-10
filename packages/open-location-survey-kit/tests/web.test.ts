@@ -2,7 +2,8 @@ import { describe, expect, test } from "bun:test"
 
 import type { ListedSubject } from "../src/core/listed"
 import { readEnvelope } from "../src/core/observation"
-import { draftFor, envelopeOf, localDay, needsPosition } from "../src/web/draft"
+import type { Field } from "../src/core/schema"
+import { dayAfter, draftFor, envelopeOf, localDay, needsPosition } from "../src/web/draft"
 import { copyrightIn, repositoryPage } from "../src/vite/credits"
 import { clampSize } from "../src/web/frame/resize"
 import { blocksOfMarkdown } from "../src/web/markdown"
@@ -64,6 +65,27 @@ describe("drafts", () => {
     const changed = { ...draft, values: { ...draft.values, access: "営業時間内" } }
     const read = readEnvelope(envelopeOf(aedSchema, changed, CONTRIBUTOR, undefined), JUDGING)
     expect(read.ok ? read.value.submission.observation : undefined).toEqual({ kind: "amend", subject: { id: "node/1", name: "梅田駅" }, attributes: { access: "営業時間内" } })
+  })
+
+  test("a table's rows are sent as typed, each cell by its column's kind, an empty row and an empty cell saying nothing", () => {
+    const hours: Field = {
+      key: "hours",
+      label: "開いている時間",
+      kind: { type: "rows", maxCount: 3, columns: [{ key: "day", label: "曜日", kind: { type: "choice", options: ["平日", "休日"] }, required: true }, { key: "until", label: "何時まで", kind: { type: "number", min: 0, max: 24 }, required: false }] },
+      required: false,
+      amendable: true,
+    }
+    const schema = { ...aedSchema, fields: [...aedSchema.fields, hours] }
+    const draft = { ...draftFor(schema, "amend", subject("node/1", "梅田駅", { access: "24時間" }), "2026-10-04"), cc0: true, notCopied: true }
+    expect(draft.values["hours"]).toEqual([])
+    const filled = { ...draft, values: { ...draft.values, hours: [{ day: "平日", until: " 22 " }, {}, { day: "休日", until: "" }] } }
+    const read = readEnvelope(envelopeOf(schema, filled, CONTRIBUTOR, undefined), { ...JUDGING, schema })
+    expect(read.ok ? read.value.submission.observation : undefined).toEqual({ kind: "amend", subject: { id: "node/1", name: "梅田駅" }, attributes: { hours: [{ day: "平日", until: 22 }, { day: "休日" }] } })
+  })
+
+  test("the last day a report may be of is so many days on, across a month's end", () => {
+    expect(dayAfter("2026-10-05", 0)).toBe("2026-10-05")
+    expect(dayAfter("2026-10-05", 30)).toBe("2026-11-04")
   })
 
   test("the day is the device's own", () => {

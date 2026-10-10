@@ -106,6 +106,15 @@ export const FieldBox = (props: { readonly label: string; readonly hint?: string
   </label>
 )
 
+/** A field of several inputs, under one label: a `label` element names one input, and a table has many. */
+export const FieldGroup = (props: { readonly label: string; readonly hint?: string | undefined; readonly children: JSX.Element }): JSX.Element => (
+  <div class="flex flex-col gap-1" role="group" aria-label={props.label}>
+    <span class="text-xs font-semibold text-text-secondary">{props.label}</span>
+    {props.hint === undefined ? null : <span class="text-xs text-text-muted">{props.hint}</span>}
+    {props.children}
+  </div>
+)
+
 export const inputClass = "w-full rounded-md border border-border bg-surface-input px-3 py-2 text-base text-text-primary placeholder:text-text-muted"
 
 export const TextInput = (props: JSX.InputHTMLAttributes<HTMLInputElement>): JSX.Element => {

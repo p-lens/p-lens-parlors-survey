@@ -5,7 +5,7 @@ import { subjectsOfJsonl, type ListedSubject } from "../src/core/listed"
 import { nameTaken } from "../src/core/namesake"
 import { readEnvelope } from "../src/core/observation"
 import { problemText } from "../src/core/problem-text"
-import { readAttributes } from "../src/core/schema"
+import { readAttributes, type Field } from "../src/core/schema"
 import { japanese } from "../src/core/words"
 import { ADD, aedSchema, envelope, JUDGING, namedOnceSchema } from "./fixtures"
 
@@ -33,6 +33,22 @@ describe("readAttributes", () => {
   test("a correction takes only correctable fields, and needs one", () => {
     expect(readAttributes(aedSchema, { access: "営業時間内", indoor: false }, "amend")).toEqual({ ok: true, value: { access: "営業時間内" } })
     expect(readAttributes(aedSchema, { indoor: false }, "amend")).toEqual({ ok: false, error: [{ field: "attributes", reason: "required" }] })
+  })
+
+  test("reads a table row by row: empty rows dropped, each cell by its column's kind, a row short of a required cell or holding a wrong one refused", () => {
+    const hours: Field = {
+      key: "hours",
+      label: "開いている時間",
+      kind: { type: "rows", maxCount: 2, columns: [{ key: "day", label: "曜日", kind: { type: "choice", options: ["平日", "休日"] }, required: true }, { key: "until", label: "何時まで", kind: { type: "number", min: 0, max: 24 }, required: false }] },
+      required: false,
+      amendable: true,
+    }
+    const schema = { ...aedSchema, fields: [...aedSchema.fields, hours] }
+    expect(readAttributes(schema, { hours: [{ day: "平日", until: 22, extra: "x" }, {}, { day: " 休日 " }] }, "amend")).toEqual({ ok: true, value: { hours: [{ day: "平日", until: 22 }, { day: "休日" }] } })
+    expect(readAttributes(schema, { hours: [{ until: 22 }] }, "amend")).toEqual({ ok: false, error: [{ field: "hours", reason: "incomplete-row" }] })
+    expect(readAttributes(schema, { hours: [{ day: "毎日" }] }, "amend")).toEqual({ ok: false, error: [{ field: "hours", reason: "invalid-row" }] })
+    expect(readAttributes(schema, { hours: [{ day: "平日" }, { day: "休日" }, { day: "平日" }] }, "amend")).toEqual({ ok: false, error: [{ field: "hours", reason: "too-many" }] })
+    expect(readAttributes(schema, { hours: [{}] }, "amend")).toEqual({ ok: false, error: [{ field: "attributes", reason: "required" }] })
   })
 
   test("runs the schema's own rules last, which may settle values", () => {
@@ -81,6 +97,12 @@ describe("readEnvelope", () => {
   test("takes an observation from the last year, not the future", () => {
     expect(readEnvelope(envelope(ADD, { observedOn: "2026-10-05" }), JUDGING).ok).toBe(true)
     for (const observedOn of ["2026-10-07", "2025-09-01", "2026-02-30x"]) expect(readEnvelope(envelope(ADD, { observedOn }), JUDGING).ok).toBe(false)
+  })
+
+  test("takes a day ahead, as far as a survey of things made known before they hold says, and no further", () => {
+    const ahead = { ...JUDGING, schema: { ...aedSchema, observedAhead: 30 } }
+    expect(readEnvelope(envelope(ADD, { observedOn: "2026-11-04" }), ahead).ok).toBe(true)
+    expect(readEnvelope(envelope(ADD, { observedOn: "2026-11-20" }), ahead).ok).toBe(false)
   })
 
   test("takes the day that is already tomorrow where the person stands, east of the server's UTC day", () => {

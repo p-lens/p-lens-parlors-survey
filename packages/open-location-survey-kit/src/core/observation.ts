@@ -138,11 +138,11 @@ const sourceOf = (value: unknown): Result<Source, Problem> => {
 
 const daysBetween = (earlier: string, later: string): number => (Date.parse(later) - Date.parse(earlier)) / 86_400_000
 
-const observedOnOf = (value: unknown, today: string): Result<string, Problem> => {
+const observedOnOf = (value: unknown, today: string, ahead: number): Result<string, Problem> => {
   const day = textOf(value)
   if (day === "") return Err({ field: "observedOn", reason: "required" })
   const gap = DAY.test(day) && !Number.isNaN(Date.parse(day)) ? daysBetween(day, today) : Number.NaN
-  return gap >= -DAYS_AHEAD_OF_UTC && gap <= OLDEST_OBSERVATION_DAYS ? Ok(day) : Err({ field: "observedOn", reason: "invalid" })
+  return gap >= -(DAYS_AHEAD_OF_UTC + ahead) && gap <= OLDEST_OBSERVATION_DAYS ? Ok(day) : Err({ field: "observedOn", reason: "invalid" })
 }
 
 const contributorOf = (value: unknown): Result<string, Problem> => (UUID.test(textOf(value)) ? Ok(textOf(value)) : Err({ field: "contributor", reason: "invalid" }))
@@ -195,7 +195,7 @@ export const readEnvelope = (body: unknown, judging: Judging): Result<Envelope, 
   const consent = isJson(value["consent"]) ? value["consent"] : {}
   const observation = observationOf(sent["observation"], judging)
   const source = sourceOf(provenance["source"])
-  const observedOn = observedOnOf(provenance["observedOn"], judging.today)
+  const observedOn = observedOnOf(provenance["observedOn"], judging.today, judging.schema.observedAhead ?? 0)
   const contributor = contributorOf(provenance["contributor"])
   const consented = consent["cc0"] === true && consent["notCopied"] === true
   if (observation.ok && source.ok && observedOn.ok && contributor.ok && consented) {

@@ -58,7 +58,8 @@ export const aedSchema: SurveySchema = {
 ```
 
 Field kinds: `text`, `kana` (a reading, kept in hiragana), `choice`, `words`,
-`number`, `flag`, and `photo` — declarable now, refused until the kit has
+`number`, `flag`, `rows` (a table rows are added to, every row the same
+columns, each a `text`, a `choice` or a `number`), and `photo` — declarable now, refused until the kit has
 somewhere to keep photos.
 
 Reports: `add` (a thing missing from the list), `locate` (where a listed thing
@@ -66,6 +67,10 @@ is), `gone` (a listed thing no longer there), `amend` (a correction).
 
 `isForbidden` and `looksLikePlaceholder` help a schema's `refine` turn away
 junk in free text.
+
+A survey of things made known before they hold — a price posted to change next
+month — gives `observedAhead`, the days ahead of today a report's day may be;
+left out, a report is of a day already come.
 
 A survey whose things go by one name each gives `sameName`, saying when two
 names are one, and `alsoNamedBy` for other fields that name a listed thing.

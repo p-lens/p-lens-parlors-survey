@@ -1,4 +1,4 @@
-import { Err, isForbidden, looksLikePlaceholder, Ok, type Attributes, type Problem, type Result, type SurveySchema } from "open-location-survey-kit"
+import { Err, isForbidden, looksLikePlaceholder, Ok, type Attributes, type AttributeValue, type Problem, type Result, type Row, type SurveySchema } from "open-location-survey-kit"
 
 import { PREFECTURES } from "./prefectures"
 
@@ -99,10 +99,46 @@ const addressOf = (address: string, prefecture: string | undefined): Result<stri
   return STREET_NUMBER.test(plain.slice(end + 1)) ? Ok(leading.rest) : Err({ field: "address", reason: "no-number" })
 }
 
+/** The counts a report states: balls or medals, and the yen a broker paid — whole and above zero. */
+const COUNTS = ["rental", "replayPaidOut", "replayDeducted", "tokens", "yen"] as const
+
+const isRows = (value: AttributeValue | undefined): value is readonly Row[] => Array.isArray(value) && value.every((item) => typeof item === "object")
+
+/** A corner by what tells it from another: its game and its rate. */
+const tierKey = (row: Row): string => `${String(row["game"])}:${String(row["rate"])}`
+
+/** A special prize at a corner by what tells it from another: the corner and the prize's name. */
+const prizeKey = (row: Row): string => `${tierKey(row)}:${String(row["name"])}`
+
+/**
+ * What is wrong with a parlor's special prizes as reported, beyond each
+ * cell's kind: a count that is not a whole number, a prize that says
+ * neither what it takes nor what it is bought for, or one prize of one
+ * corner entered twice.
+ */
+const prizesProblem = (rows: readonly Row[]): Problem | undefined => {
+  if (rows.some((row) => COUNTS.some((count) => row[count] !== undefined && !Number.isInteger(row[count])))) return { field: "prizes", reason: "not-whole" }
+  if (rows.some((row) => row["tokens"] === undefined && row["yen"] === undefined)) return { field: "prizes", reason: "prize-says-nothing" }
+  return new Set(rows.map(prizeKey)).size < rows.length ? { field: "prizes", reason: "repeated-prize" } : undefined
+}
+
+/**
+ * What is wrong with a parlor's corners as reported, beyond each cell's
+ * kind: a count that is not a whole number, a replay stated by one of its
+ * two counts, or one corner entered twice. A corner may say as little as
+ * that it is there — its game and its rate.
+ */
+const tiersProblem = (rows: readonly Row[]): Problem | undefined => {
+  if (rows.some((row) => COUNTS.some((count) => row[count] !== undefined && !Number.isInteger(row[count])))) return { field: "tiers", reason: "not-whole" }
+  if (rows.some((row) => (row["replayPaidOut"] === undefined) !== (row["replayDeducted"] === undefined))) return { field: "tiers", reason: "replay-half" }
+  return new Set(rows.map(tierKey)).size < rows.length ? { field: "tiers", reason: "repeated-tier" } : undefined
+}
+
 /**
  * The rules of a parlor beyond each field's kind: a real name with its
- * branch, a reading and search words that are not junk, and an address down
- * to the municipality and the street number, in the prefecture chosen.
+ * branch, a reading and search words that are not junk, an address down
+ * to the municipality and the street number, in the prefecture chosen, and
+ * corners that read as corners.
  */
 export const refineParlor = (attributes: Attributes): Result<Attributes, readonly Problem[]> => {
   const name = text(attributes, "name")
@@ -110,11 +146,15 @@ export const refineParlor = (attributes: Attributes): Result<Attributes, readonl
   const keywords = attributes["keywords"]
   const address = text(attributes, "address")
   const settledAddress = address === undefined ? undefined : addressOf(address, text(attributes, "prefecture"))
+  const tiers = attributes["tiers"]
+  const prizes = attributes["prizes"]
   const problems = [
     name === undefined ? undefined : nameProblem(name),
     reading === undefined ? undefined : readingProblem(reading),
     Array.isArray(keywords) ? keywordsProblem(keywords) : undefined,
     settledAddress === undefined || settledAddress.ok ? undefined : settledAddress.error,
+    isRows(tiers) ? tiersProblem(tiers) : undefined,
+    isRows(prizes) ? prizesProblem(prizes) : undefined,
   ].filter((problem): problem is Problem => problem !== undefined)
   if (problems.length > 0) return Err(problems)
   return Ok(settledAddress?.ok ? { ...attributes, address: settledAddress.value } : attributes)
@@ -135,18 +175,80 @@ const nameKey = (name: string): string =>
  */
 const sameParlorName = (left: string, right: string): boolean => nameKey(left) === nameKey(right)
 
-/** A pachinko or pachislot parlor, as app.p-lens.jp's parlor list keeps one. */
+/**
+ * How far ahead a report's day may be: half a year. A parlor posts a
+ * change of its rates before it comes, and a report of that is of the day
+ * the change begins.
+ */
+const HALF_A_YEAR = 183
+
+/** The most a count of balls or medals is taken to be: ¥1,000 rents 5,000 balls at the cheapest corner there is. */
+const MOST_TOKENS = 100_000
+
+/** The most a broker is taken to have paid for special prizes at one time. */
+const MOST_YEN = 100_000
+
+/**
+ * A pachinko or pachislot parlor, as app.p-lens.jp's parlor list keeps one,
+ * and its corners by rate, which the list keeps in a file of their own
+ * (`tiers.jsonl`): a parlor has as many as it has, so they are rows. A
+ * parlor gives special prizes for tokens and exchanges nothing for money;
+ * the broker that buys the prizes is someone else. A reporter saw both in
+ * one visit, so one row says of a prize what the parlor takes for it and
+ * what the broker paid them for it — and the two are published apart: what
+ * the parlor takes with the parlor, and the yen in p-lens-brokers, as a
+ * thing a player saw happen on a day, never as a rate and never with the
+ * parlor.
+ */
 export const parlorSchema: SurveySchema = {
   id: "parlor",
   noun: "店舗",
   nameField: "name",
   observations: ["add", "locate", "gone", "amend"],
+  observedAhead: HALF_A_YEAR,
   fields: [
     { key: "name", label: "店名", hint: "チェーン名と支店名まで（例：マルハン梅田店）", kind: { type: "text", maxLength: 30 }, required: true, amendable: true },
     { key: "reading", label: "よみ", hint: "ひらがなで（例：まるはんうめだてん）", kind: { type: "kana", minLength: 3, maxLength: 40 }, required: true, amendable: true },
     { key: "prefecture", label: "都道府県", kind: { type: "choice", options: PREFECTURES }, required: true, amendable: false },
     { key: "address", label: "住所", hint: "市区町村から番地まで（例：大阪市北区小松原町4-16）", kind: { type: "text", maxLength: 80 }, required: true, amendable: false },
     { key: "keywords", label: "検索語", hint: "略称などを読点で区切って（例：Dステ、ディーステ）", kind: { type: "words", maxCount: 10, maxLength: 30 }, required: false, amendable: true },
+    {
+      key: "tiers",
+      label: "コーナーとレート",
+      hint: "分かるコーナーだけ、分かる項目だけで構いません。貸しは 1,000 円あたりの玉数・枚数です（例：4円パチンコなら 250）。これから変わると掲示されている内容なら、下の「確認した日」に変わる日（半年先まで）を入れてください",
+      kind: {
+        type: "rows",
+        maxCount: 12,
+        columns: [
+          { key: "game", label: "種別", kind: { type: "choice", options: ["パチンコ", "パチスロ"] }, required: true },
+          { key: "rate", label: "レート", kind: { type: "number", min: 0.1, max: 100, unit: "円" }, required: true },
+          { key: "rental", label: "貸し", kind: { type: "number", min: 1, max: MOST_TOKENS }, required: false },
+          { key: "replayPaidOut", label: "再プレイ払出", kind: { type: "number", min: 1, max: MOST_TOKENS }, required: false },
+          { key: "replayDeducted", label: "再プレイ減数", kind: { type: "number", min: 1, max: MOST_TOKENS }, required: false },
+        ],
+      },
+      required: false,
+      amendable: true,
+    },
+    {
+      key: "prizes",
+      label: "特殊景品",
+      hint: "コーナーごと、景品の種類ごとに 1 行。店舗で要る玉数・枚数と、交換所で実際に受け取った額を、分かるほうだけでも（例：4円パチンコ・小景品・280・1000）。交換所で受け取った額は、自分で交換して見たものだけを入れてください。人から聞いた額や、これから変わる予定の額は入れません",
+      kind: {
+        type: "rows",
+        maxCount: 24,
+        columns: [
+          { key: "game", label: "種別", kind: { type: "choice", options: ["パチンコ", "パチスロ"] }, required: true },
+          { key: "rate", label: "レート", kind: { type: "number", min: 0.1, max: 100, unit: "円" }, required: true },
+          { key: "name", label: "景品の名前", kind: { type: "text", maxLength: 10 }, required: true },
+          { key: "tokens", label: "要る玉数・枚数", kind: { type: "number", min: 1, max: MOST_TOKENS }, required: false },
+          { key: "yen", label: "交換所で受け取った額", kind: { type: "number", min: 1, max: MOST_YEN, unit: "円" }, required: false },
+        ],
+      },
+      required: false,
+      amendable: true,
+    },
+    { key: "broker", label: "特殊景品交換所の名前", hint: "特殊景品を買い取る交換所に名前があれば（空欄なら「交換所」として載せます）", kind: { type: "text", maxLength: 30 }, required: false, amendable: true },
   ],
   refine: refineParlor,
   sameName: sameParlorName,
@@ -161,6 +263,11 @@ export const parlorSchema: SurveySchema = {
     "no-municipality": "に市区町村が入っていません",
     "no-number": "に番地が入っていません",
     "other-prefecture": "の都道府県が選んだものと違います",
+    "not-whole": "の数は整数で入れてください",
+    "replay-half": "の再プレイは、払出と減数の両方を入れてください",
+    "repeated-tier": "に同じコーナーが 2 回入っています",
+    "prize-says-nothing": "は、要る玉数・枚数か交換所で受け取った額のどちらかを入れてください",
+    "repeated-prize": "に同じコーナーの同じ景品が 2 回入っています",
     listed: "はすでに一覧にある店舗の名前です。同じ店舗なら一覧から選んで報告し、別の店舗なら支店名まで入れてください",
   },
 }

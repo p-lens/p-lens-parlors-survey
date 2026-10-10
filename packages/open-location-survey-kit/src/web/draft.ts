@@ -1,9 +1,12 @@
 import type { ListedSubject } from "../core/listed"
 import type { Position, Source } from "../core/observation"
-import type { AttributeValue, Field, ObservationKind, SurveySchema } from "../core/schema"
+import type { AttributeValue, Column, Field, ObservationKind, Row, SurveySchema } from "../core/schema"
 
-/** A field's value as the form holds it: what was typed, or a box ticked. */
-export type DraftValue = string | boolean
+/** A row of a table as the form holds it: what was typed in each cell, by its column. */
+export type RowDraft = Readonly<Record<string, string>>
+
+/** A field's value as the form holds it: what was typed, a box ticked, or a table's rows. */
+export type DraftValue = string | boolean | readonly RowDraft[]
 
 /** How the person says they know, as the form holds it before it is sent. */
 export interface SourceDraft {
@@ -25,13 +28,25 @@ export interface Draft {
   readonly notCopied: boolean
 }
 
+const isRows = (value: AttributeValue): value is readonly Row[] => Array.isArray(value) && value.every((item) => typeof item === "object")
+
 const asDraftValue = (value: AttributeValue | undefined): DraftValue | undefined => {
   if (value === undefined) return undefined
   if (typeof value === "boolean") return value
+  if (isRows(value)) return value.map((row) => Object.fromEntries(Object.entries(row).map(([key, cell]) => [key, String(cell)] as const)))
   return Array.isArray(value) ? value.join("、") : String(value)
 }
 
-const emptyValue = (field: Field): DraftValue => (field.kind.type === "flag" ? false : "")
+const emptyValue = (field: Field): DraftValue => (field.kind.type === "flag" ? false : field.kind.type === "rows" ? [] : "")
+
+/** A row of the form as it is sent: each cell by its column's kind, an empty cell saying nothing. */
+const sentRow = (columns: readonly Column[], row: RowDraft): Readonly<Record<string, unknown>> =>
+  Object.fromEntries(
+    columns.flatMap((column) => {
+      const text = (row[column.key] ?? "").trim()
+      return text === "" ? [] : [[column.key, column.kind.type === "number" ? Number(text) : text] as const]
+    }),
+  )
 
 /** A report to start from: a correction begins from what the list says. */
 export const draftFor = (schema: SurveySchema, kind: ObservationKind, subject: ListedSubject | undefined, today: string): Draft => ({
@@ -53,6 +68,10 @@ export const needsPosition = (draft: Draft): boolean => (draft.kind === "add" ||
 const sentValue = (field: Field, value: DraftValue | undefined): unknown => {
   if (value === undefined) return undefined
   if (typeof value === "boolean") return value
+  if (typeof value !== "string") {
+    const rows = field.kind.type === "rows" ? value.map((row) => sentRow(field.kind.type === "rows" ? field.kind.columns : [], row)).filter((row) => Object.keys(row).length > 0) : []
+    return rows.length === 0 ? undefined : rows
+  }
   const text = value.trim()
   if (text === "") return undefined
   switch (field.kind.type) {
@@ -64,6 +83,7 @@ const sentValue = (field: Field, value: DraftValue | undefined): unknown => {
     case "kana":
     case "choice":
     case "flag":
+    case "rows":
     case "photo":
       return text
   }
@@ -79,7 +99,7 @@ const attributesOf = (draft: Draft, fields: readonly Field[]): Record<string, un
 
 /** Only what a correction changes is sent: a field left as the list has it says nothing. */
 const changedFields = (schema: SurveySchema, draft: Draft): readonly Field[] =>
-  schema.fields.filter((field) => field.amendable && asDraftValue(draft.subject?.attributes[field.key]) !== draft.values[field.key])
+  schema.fields.filter((field) => field.amendable && JSON.stringify(asDraftValue(draft.subject?.attributes[field.key])) !== JSON.stringify(draft.values[field.key]))
 
 const subjectRef = (draft: Draft) => ({ id: draft.subject?.id ?? "", name: draft.subject?.name ?? "" })
 
@@ -113,6 +133,9 @@ export const envelopeOf = (schema: SurveySchema, draft: Draft, contributor: stri
   consent: { cc0: draft.cc0, notCopied: draft.notCopied },
   turnstile,
 })
+
+/** The day so many days after another, YYYY-MM-DD: the last day a report may be of, where its survey takes days ahead. */
+export const dayAfter = (day: string, days: number): string => new Date(Date.parse(day) + days * 86_400_000).toISOString().slice(0, 10)
 
 /** The day in the device's own time zone, YYYY-MM-DD: the day the person would say they saw it. */
 export const localDay = (now: Date): string =>

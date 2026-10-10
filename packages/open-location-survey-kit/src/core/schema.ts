@@ -1,14 +1,31 @@
 import { Err, Ok, type Result } from "./result"
 
+/** One row of a `rows` field: a value for each of its columns that was given. */
+export type Row = Readonly<Record<string, string | number>>
+
 /** A value a person gives for a field. */
-export type AttributeValue = string | number | boolean | readonly string[]
+export type AttributeValue = string | number | boolean | readonly string[] | readonly Row[]
 
 /** What a person says about a thing, field by field. */
 export type Attributes = Readonly<Record<string, AttributeValue>>
 
+/** What a cell of a row holds: a short text, one of a few choices, or a number. */
+export type ColumnKind = Extract<FieldKind, { readonly type: "text" | "choice" | "number" }>
+
+/** One column of a `rows` field. */
+export interface Column {
+  readonly key: string
+  readonly label: string
+  readonly kind: ColumnKind
+  /** Whether a row must have it. */
+  readonly required: boolean
+}
+
 /**
  * What kind of value a field takes. `kana` is a reading in hiragana, katakana
- * folded into it. `photo` can be declared, but no photo is taken until the kit
+ * folded into it. `rows` is a table a person adds rows to, as many as the
+ * thing has — the hours of each day, the price of each size — every row the
+ * same columns. `photo` can be declared, but no photo is taken until the kit
  * has somewhere to keep one: a submission carrying one is refused.
  */
 export type FieldKind =
@@ -18,6 +35,7 @@ export type FieldKind =
   | { readonly type: "words"; readonly maxCount: number; readonly maxLength: number }
   | { readonly type: "number"; readonly min?: number; readonly max?: number; readonly unit?: string }
   | { readonly type: "flag" }
+  | { readonly type: "rows"; readonly columns: readonly Column[]; readonly maxCount: number }
   | { readonly type: "photo" }
 
 export interface Field {
@@ -66,6 +84,13 @@ export interface SurveySchema {
   readonly sameName?: (left: string, right: string) => boolean
   /** Other fields of a listed thing that also name it, compared as its name is. */
   readonly alsoNamedBy?: readonly string[]
+  /**
+   * How many days ahead of today the day a report is of may be, for a
+   * survey of things made known before they hold — a price posted to
+   * change next month, an opening announced. Left out, a report is of a
+   * day already come.
+   */
+  readonly observedAhead?: number
 }
 
 type Json = Readonly<Record<string, unknown>>
@@ -89,6 +114,20 @@ const isEmpty = (value: unknown): boolean =>
 const lengthProblem = (key: string, text: string, minLength: number | undefined, maxLength: number): Problem | undefined => {
   if (lengthOf(text) > maxLength) return { field: key, reason: "too-long" }
   return minLength !== undefined && lengthOf(text) < minLength ? { field: key, reason: "too-short" } : undefined
+}
+
+/**
+ * One row as sent, read column by column, or why the row is not one: a
+ * required cell left empty, or a cell that is not of its column's kind. The
+ * problem is the field's, since a form shows it under the table. A row with
+ * every cell empty is no row, and is dropped before this.
+ */
+const rowOf = (field: Field, columns: readonly Column[], sent: Readonly<Record<string, unknown>>): Result<Row, Problem> => {
+  if (columns.some((column) => column.required && isEmpty(sent[column.key]))) return Err({ field: field.key, reason: "incomplete-row" })
+  const cells = columns.filter((column) => !isEmpty(sent[column.key])).map((column) => ({ column, value: valueOf({ ...column, amendable: false }, sent[column.key]) }))
+  return cells.every(({ value }) => value.ok && (typeof value.value === "string" || typeof value.value === "number"))
+    ? Ok(Object.fromEntries(cells.flatMap(({ column, value }) => (value.ok && (typeof value.value === "string" || typeof value.value === "number") ? [[column.key, value.value] as const] : []))))
+    : Err({ field: field.key, reason: "invalid-row" })
 }
 
 /** One field's value as sent, read by its kind, or why it is not one. Empty values are handled before this. */
@@ -122,6 +161,13 @@ const valueOf = (field: Field, sent: unknown): Result<AttributeValue, Problem> =
     }
     case "flag":
       return typeof sent === "boolean" ? Ok(sent) : Err({ field: key, reason: "invalid" })
+    case "rows": {
+      const given = (Array.isArray(sent) ? sent : []).filter(isJson).filter((row) => kind.columns.some((column) => !isEmpty(row[column.key])))
+      if (given.length > kind.maxCount) return Err({ field: key, reason: "too-many" })
+      const rows = given.map((row) => rowOf(field, kind.columns, row))
+      const refused = rows.find((row) => !row.ok)
+      return refused !== undefined && !refused.ok ? refused : Ok(rows.flatMap((row) => (row.ok ? [row.value] : [])))
+    }
     case "photo":
       return Err({ field: key, reason: "unsupported" })
   }
@@ -131,7 +177,8 @@ const valueOf = (field: Field, sent: unknown): Result<AttributeValue, Problem> =
  * Attributes as sent, read field by field against the schema, then by its
  * domain rules: every problem, or the attributes as the survey keeps them.
  * A new thing needs its required fields; a correction needs at least one
- * correctable field and takes nothing else. Unknown keys are dropped.
+ * correctable field and takes nothing else. Unknown keys are dropped, and
+ * so is a table left with no row.
  */
 export const readAttributes = (schema: SurveySchema, sent: unknown, kind: "add" | "amend"): Result<Attributes, readonly Problem[]> => {
   const given = isJson(sent) ? sent : {}
@@ -143,6 +190,7 @@ export const readAttributes = (schema: SurveySchema, sent: unknown, kind: "add" 
   const values = present.map(({ field, sent }) => ({ field, value: valueOf(field, sent) }))
   const problems = [...missing, ...values.flatMap(({ value }) => (value.ok ? [] : [value.error]))]
   if (problems.length > 0) return Err(problems)
-  const attributes: Attributes = Object.fromEntries(values.flatMap(({ field, value }) => (value.ok ? [[field.key, value.value] as const] : [])))
+  const attributes: Attributes = Object.fromEntries(values.flatMap(({ field, value }) => (value.ok && !isEmpty(value.value) ? [[field.key, value.value] as const] : [])))
+  if (kind === "amend" && Object.keys(attributes).length === 0) return Err([{ field: "attributes", reason: "required" }])
   return schema.refine === undefined ? Ok(attributes) : schema.refine(attributes, kind)
 }

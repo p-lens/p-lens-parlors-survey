@@ -6,6 +6,15 @@ survey.p-lens.jp: where people tell P-Lens (Pレンズ) about pachinko and
 pachislot parlors — one missing from the parlor list, where one the list has no
 position for stands, one that has closed, or a name or reading to
 correct.
+A report may also say, where the reporter knows them, a parlor's corners and
+their rates — what it rents at and replays at — its special prizes, each kind
+with the balls or medals the parlor takes for it and what the broker
+(特殊景品交換所, the booth that buys special prizes) paid the reporter for it,
+and the broker's name. It is one report, published apart: the corners, and
+what each prize takes, in the parlor list's `tiers.jsonl`; and what the prizes
+came to at the broker, which is not the parlor, in a repository of its own,
+[p-lens-brokers](https://github.com/p-lens/p-lens-brokers) — not as a rate,
+but as a thing a player saw happen on a day.
 
 It is [open-location-survey-kit](packages/open-location-survey-kit) given a
 parlor schema. The kit collects facts first-hand, with provenance, under CC0,

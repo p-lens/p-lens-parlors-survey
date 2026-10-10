@@ -52,4 +52,38 @@ describe("parlorSchema", () => {
     expect(same("キコーナ 松戸店", "キコーナ 八柱店")).toBe(false)
     expect(parlorSchema.alsoNamedBy).toEqual(["officialName"])
   })
+
+  test("takes a parlor's corners by rate, each saying as much as is known, on a new parlor or as a correction", () => {
+    const tiers = [
+      { game: "パチンコ", rate: 4, rental: 250, replayPaidOut: 125, replayDeducted: 133 },
+      { game: "パチンコ", rate: 1 },
+      { game: "パチスロ", rate: 20, rental: 50 },
+    ]
+    expect(readAttributes(parlorSchema, { ...PARLOR, tiers }, "add")).toMatchObject({ ok: true, value: { tiers } })
+    expect(readAttributes(parlorSchema, { tiers, broker: " 大阪景品センター " }, "amend")).toEqual({ ok: true, value: { tiers, broker: "大阪景品センター" } })
+  })
+
+  test("refuses corners that do not read as corners: no game or rate, a count not whole, half a replay, one corner twice", () => {
+    expect(reasons({ tiers: [{ rate: 4 }] }, "amend")).toEqual(["tiers:incomplete-row"])
+    expect(reasons({ tiers: [{ game: "アレンジボール", rate: 4 }] }, "amend")).toEqual(["tiers:invalid-row"])
+    expect(reasons({ tiers: [{ game: "パチンコ", rate: 4, rental: 250.5 }] }, "amend")).toEqual(["tiers:not-whole"])
+    expect(reasons({ tiers: [{ game: "パチンコ", rate: 4, replayPaidOut: 125 }] }, "amend")).toEqual(["tiers:replay-half"])
+    expect(reasons({ tiers: [{ game: "パチンコ", rate: 4 }, { game: "パチンコ", rate: 4, rental: 250 }] }, "amend")).toEqual(["tiers:repeated-tier"])
+  })
+
+  test("takes a parlor's special prizes a corner and a prize a row: what the parlor takes for each, and what the broker paid, either alone", () => {
+    const prizes = [
+      { game: "パチンコ", rate: 4, name: "大景品", tokens: 1400, yen: 5000 },
+      { game: "パチンコ", rate: 4, name: "小景品", tokens: 140 },
+      { game: "パチスロ", rate: 20, name: "小景品", yen: 500 },
+    ]
+    expect(readAttributes(parlorSchema, { prizes }, "amend")).toEqual({ ok: true, value: { prizes } })
+    expect(reasons({ prizes: [{ game: "パチンコ", rate: 4, name: "大景品" }] }, "amend")).toEqual(["prizes:prize-says-nothing"])
+    expect(reasons({ prizes: [{ game: "パチンコ", rate: 4, name: "大景品", tokens: 1400.5 }] }, "amend")).toEqual(["prizes:not-whole"])
+    expect(reasons({ prizes: [{ game: "パチンコ", rate: 4, name: "大景品", tokens: 1400 }, { game: "パチンコ", rate: 4, name: "大景品", yen: 5000 }] }, "amend")).toEqual(["prizes:repeated-prize"])
+  })
+
+  test("takes a report of a day up to half a year ahead: a change posted before it comes", () => {
+    expect(parlorSchema.observedAhead).toBe(183)
+  })
 })

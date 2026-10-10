@@ -1,17 +1,26 @@
 import type { Observation, Position, Source } from "../core/observation"
-import type { Attributes, AttributeValue, SurveySchema } from "../core/schema"
+import type { Attributes, AttributeValue, Field, Row, SurveySchema } from "../core/schema"
 import type { Words } from "../core/words"
 import type { SurveyRecord } from "./record"
 
 /** A label and a value, the unit every text output is written from. */
 export type Line = readonly [string, string]
 
-export const valueText = (value: AttributeValue): string => (Array.isArray(value) ? value.join("、") : String(value))
+const isRows = (value: AttributeValue): value is readonly Row[] => Array.isArray(value) && value.every((item) => typeof item === "object")
+
+export const valueText = (value: AttributeValue): string => (isRows(value) ? JSON.stringify(value) : Array.isArray(value) ? value.join("、") : String(value))
+
+/** A row as a person reads it: each cell it has under its column's label, in the columns' order. */
+const rowText = (row: Row, field: Field): string =>
+  (field.kind.type === "rows" ? field.kind.columns : []).flatMap((column) => (row[column.key] === undefined ? [] : [`${column.label} ${String(row[column.key])}`])).join("・")
+
+/** A field's value as a person reads it; a table's rows one after another, each by its columns' labels. */
+const fieldText = (field: Field, value: AttributeValue): string => (isRows(value) ? value.map((row) => rowText(row, field)).join(" ／ ") : valueText(value))
 
 export const attributeLines = (attributes: Attributes, schema: SurveySchema): readonly Line[] =>
   schema.fields.flatMap((field) => {
     const value = attributes[field.key]
-    return value === undefined ? [] : [[field.label, valueText(value)] as const]
+    return value === undefined ? [] : [[field.label, fieldText(field, value)] as const]
   })
 
 export const positionText = (position: Position, words: Words): string =>

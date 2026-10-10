@@ -85,6 +85,8 @@ export interface Words {
     readonly officialPage: string
     readonly noPositionYet: string
     readonly optional: string
+    readonly addRow: string
+    readonly removeRow: string
   }
 }
 
@@ -109,6 +111,8 @@ export const japanese: Words = {
     "too-long": "が長すぎます",
     "too-short": "が短すぎます",
     "too-many": "が多すぎます",
+    "incomplete-row": "に、必要な項目が空いている行があります",
+    "invalid-row": "に、正しくない値の入った行があります",
     "not-kana": "はひらがなで入力してください",
     "not-a-choice": "を選び直してください",
     "out-of-range": "が範囲の外です",
@@ -192,5 +196,7 @@ export const japanese: Words = {
     officialPage: "運営者の公式ページ",
     noPositionYet: "まだ地図上の座標がわかっていません。",
     optional: "（任意）",
+    addRow: "行を追加",
+    removeRow: "この行を削除",
   },
 }
