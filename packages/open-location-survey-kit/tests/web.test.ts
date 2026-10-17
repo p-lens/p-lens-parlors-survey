@@ -3,7 +3,7 @@ import { describe, expect, test } from "bun:test"
 import type { ListedSubject } from "../src/core/listed"
 import { readEnvelope } from "../src/core/observation"
 import { columnLabel, type Column, type Field } from "../src/core/schema"
-import { dayAfter, draftFor, envelopeOf, localDay, needsPosition, rowAfter } from "../src/web/draft"
+import { dayAfter, draftFor, envelopeOf, localDay, needsPosition, newRow, rowAfter } from "../src/web/draft"
 import { copyrightIn, repositoryPage } from "../src/vite/credits"
 import { clampSize } from "../src/web/frame/resize"
 import { blocksOfMarkdown } from "../src/web/markdown"
@@ -81,6 +81,23 @@ describe("drafts", () => {
     const filled = { ...draft, values: { ...draft.values, hours: [{ day: "平日", until: " 22 " }, {}, { day: "休日", until: "" }] } }
     const read = readEnvelope(envelopeOf(schema, filled, CONTRIBUTOR, undefined), { ...JUDGING, schema })
     expect(read.ok ? read.value.submission.observation : undefined).toEqual({ kind: "amend", subject: { id: "node/1", name: "梅田駅" }, attributes: { hours: [{ day: "平日", until: 22 }, { day: "休日" }] } })
+  })
+
+  test("a row is added holding its columns' initial values, and one holding nothing else is not sent", () => {
+    const sizes: Field = {
+      key: "sizes",
+      label: "大きさ",
+      kind: { type: "rows", maxCount: 3, columns: [{ key: "size", label: "大きさ", kind: { type: "text", maxLength: 4 }, required: true, initial: "小" }, { key: "count", label: "数", kind: { type: "number" }, required: false }] },
+      required: false,
+      amendable: true,
+    }
+    const schema = { ...aedSchema, fields: [...aedSchema.fields, sizes] }
+    const columns = sizes.kind.type === "rows" ? sizes.kind.columns : []
+    expect(newRow(columns)).toEqual({ size: "小" })
+    const draft = { ...draftFor(schema, "amend", subject("node/1", "梅田駅", { access: "24時間" }), "2026-10-04"), cc0: true, notCopied: true }
+    const filled = { ...draft, values: { ...draft.values, sizes: [newRow(columns), { size: "小", count: "2" }, { size: "大" }] } }
+    const read = readEnvelope(envelopeOf(schema, filled, CONTRIBUTOR, undefined), { ...JUDGING, schema })
+    expect(read.ok ? read.value.submission.observation : undefined).toEqual({ kind: "amend", subject: { id: "node/1", name: "梅田駅" }, attributes: { sizes: [{ size: "小", count: 2 }, { size: "大" }] } })
   })
 
   test("a choice writes the usual value into the cells it fills, never over what was typed, and takes it back when nothing is chosen", () => {

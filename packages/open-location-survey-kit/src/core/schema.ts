@@ -21,6 +21,8 @@ export interface Column {
   readonly required: boolean
   /** What its empty cell shows in the form: an example of what goes there. */
   readonly placeholder?: string
+  /** What its cell holds in a row just added: what most rows hold, there to be typed over. A row holding nothing but these is not sent. */
+  readonly initial?: string
   /**
    * Other words for its label, by what another column of the row holds: a
    * count is of one thing in a row of this kind and of another in a row of
@@ -51,7 +53,12 @@ export const columnLabel = (column: Column, row: Readonly<Record<string, unknown
 export type FieldKind =
   | { readonly type: "text"; readonly maxLength: number; readonly minLength?: number }
   | { readonly type: "kana"; readonly maxLength: number; readonly minLength?: number }
-  | { readonly type: "choice"; readonly options: readonly string[] }
+  | {
+      readonly type: "choice"
+      readonly options: readonly string[]
+      /** Where the form draws a line among the options, before the option at each of these places: the ones most choose set apart from the rarer. */
+      readonly breaks?: readonly number[]
+    }
   | { readonly type: "words"; readonly maxCount: number; readonly maxLength: number }
   | { readonly type: "number"; readonly min?: number; readonly max?: number; readonly unit?: string }
   | { readonly type: "flag" }
@@ -75,6 +82,13 @@ export interface Field {
   readonly required: boolean
   /** Whether a person may correct it on a listed thing. */
   readonly amendable: boolean
+  /**
+   * The table it is put away beside, few reports needing it: out of sight in
+   * the form until the button facing that table's own is pressed, and shown
+   * under the table, with what the button says and what the one that puts
+   * it away again is called.
+   */
+  readonly tuckedBeside?: { readonly field: string; readonly add: string; readonly away: string }
 }
 
 /** Why something a person sent cannot be taken. `field` is a field's key or a part of the submission. */

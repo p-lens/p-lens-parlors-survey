@@ -37,7 +37,8 @@ const asDraftValue = (value: AttributeValue | undefined): DraftValue | undefined
   return Array.isArray(value) ? value.join("、") : String(value)
 }
 
-const emptyValue = (field: Field): DraftValue => (field.kind.type === "flag" ? false : field.kind.type === "rows" ? [] : "")
+/** A field's value as the form holds it before anything is typed. */
+export const emptyValue = (field: Field): DraftValue => (field.kind.type === "flag" ? false : field.kind.type === "rows" ? [] : "")
 
 /**
  * A row after one of its cells was changed. A choice that fills other
@@ -53,6 +54,12 @@ export const rowAfter = (columns: readonly Column[], row: RowDraft, key: string,
   const written = [...new Set([...Object.keys(before), ...Object.keys(after)])].filter((cell) => (row[cell] ?? "") === "" || row[cell] === before[cell])
   return { ...row, [key]: value, ...Object.fromEntries(written.map((cell) => [cell, after[cell] ?? ""] as const)) }
 }
+
+/** A row as it is added to a table: each cell that has one holding its column's initial value. */
+export const newRow = (columns: readonly Column[]): RowDraft => Object.fromEntries(columns.flatMap((column) => (column.initial === undefined ? [] : [[column.key, column.initial] as const])))
+
+/** Whether a row holds no more than it was added with: nothing typed, or only what its columns start with. */
+const untouched = (columns: readonly Column[], row: RowDraft): boolean => columns.every((column) => (row[column.key] ?? "").trim() === (column.initial ?? ""))
 
 /** A row of the form as it is sent: each cell by its column's kind, an empty cell saying nothing. */
 const sentRow = (columns: readonly Column[], row: RowDraft): Readonly<Record<string, unknown>> =>
@@ -84,7 +91,8 @@ const sentValue = (field: Field, value: DraftValue | undefined): unknown => {
   if (value === undefined) return undefined
   if (typeof value === "boolean") return value
   if (typeof value !== "string") {
-    const rows = field.kind.type === "rows" ? value.map((row) => sentRow(field.kind.type === "rows" ? field.kind.columns : [], row)).filter((row) => Object.keys(row).length > 0) : []
+    const columns = field.kind.type === "rows" ? field.kind.columns : []
+    const rows = value.filter((row) => !untouched(columns, row)).map((row) => sentRow(columns, row))
     return rows.length === 0 ? undefined : rows
   }
   const text = value.trim()

@@ -70,9 +70,14 @@ describe("parlorSchema", () => {
     expect(reasons({ tiers: [{ corner: "4円パチンコ" }, { corner: "4円パチンコ", rental: 250 }] }, "amend")).toEqual(["tiers:repeated-tier"])
   })
 
+  test("sets the corners most parlors have apart from those some have, and those from the rarest", () => {
+    const corner = (parlorSchema.fields.find((field) => field.key === "prizes")?.kind as { columns: readonly Column[] }).columns.find((column) => column.key === "corner")
+    const kind = corner?.kind.type === "choice" ? corner.kind : undefined
+    expect(kind?.breaks?.map((at) => kind.options[at])).toEqual(["2円パチンコ", "0.25円パチンコ"])
+  })
   test("writes what ¥1,000 usually rents as a corner is chosen, and calls the count by the corner's game", () => {
     const [corner, rental] = (parlorSchema.fields.find((field) => field.key === "tiers")?.kind as { readonly columns: readonly Column[] }).columns
-    expect([corner?.fills?.["4円パチンコ"], corner?.fills?.["1円パチンコ"], corner?.fills?.["20円スロット"], corner?.fills?.["5円スロット"], corner?.fills?.["0.2円パチンコ"]]).toEqual([{ rental: "250" }, { rental: "1000" }, { rental: "50" }, { rental: "200" }, { rental: "5000" }])
+    expect([corner?.fills?.["4円パチンコ"], corner?.fills?.["1円パチンコ"], corner?.fills?.["20円スロット"], corner?.fills?.["5円スロット"], corner?.fills?.["8円スロット"], corner?.fills?.["0.2円パチンコ"]]).toEqual([{ rental: "250" }, { rental: "1000" }, { rental: "50" }, { rental: "200" }, { rental: "125" }, { rental: "5000" }])
     expect(rental === undefined ? [] : [columnLabel(rental, {}), columnLabel(rental, { corner: "4円パチンコ" }), columnLabel(rental, { corner: "20円スロット" })]).toEqual(["貸し数", "貸玉数", "貸メダル数"])
   })
 
@@ -106,14 +111,14 @@ const PRIZES = [
 const amending = (attributes: Record<string, unknown>): Submission => ({ observation: { kind: "amend", subject: SUBJECT, attributes: attributes as never }, provenance: SEEN })
 
 describe("a parlor's report divided between the parlor and the broker", () => {
-  test("keeps with the parlor what it takes for each prize and no yen, and gives the broker the rows that say a sum", () => {
-    const { here, there } = divideReport(amending({ reading: "まるはんうめだてん", prizes: PRIZES }))
+  test("keeps with the parlor what it takes for each prize and no yen, and gives the broker the rows that say a sum, with its name", () => {
+    const { here, there } = divideReport(amending({ reading: "まるはんうめだてん", prizes: PRIZES, broker: "大阪景品センター" }))
     expect(here?.observation).toEqual({
       kind: "amend",
       subject: SUBJECT,
       attributes: { reading: "まるはんうめだてん", prizes: [{ name: "小景品", corner: "4円パチンコ", tokens: 280 }, { name: "大景品", corner: "4円パチンコ", tokens: 1400 }] },
     } as never)
-    expect(there?.observation).toEqual({ kind: "amend", subject: SUBJECT, attributes: { prizes: [PRIZES[0], PRIZES[2]] } } as never)
+    expect(there?.observation).toEqual({ kind: "amend", subject: SUBJECT, attributes: { prizes: [PRIZES[0], PRIZES[2]], broker: "大阪景品センター" } } as never)
   })
 
   test("is the parlor's whole where it says no sum, and the broker's whole where it says nothing else", () => {
@@ -134,12 +139,16 @@ describe("a parlor's report divided between the parlor and the broker", () => {
 describe("what was seen at a broker, as lines of the observations", () => {
   const record = (submission: Submission): SurveyRecord => ({ id: "0192f0a0-0000-7000-8000-000000000001", survey: "parlor", takenAt: "2026-10-11T09:00:00.000Z", license: "CC0-1.0", ...submission })
 
-  test("is a line a prize paid for, under the report's id and the observer's pseudonym, its corner as the lists write one and the broker called 交換所", () => {
+  test("is a line a prize paid for, under the report's id and the observer's pseudonym, its corner as the lists write one, and no broker where none is named", () => {
     const there = divideReport(amending({ prizes: PRIZES })).there as Submission
     expect(observationLines(record(there)).map((line) => JSON.parse(line) as unknown)).toEqual([
-      { parlor: "osm:way/1", observedOn: "2026-10-11", broker: "交換所", game: "pachinko", tier: "4円", prize: "小景品", tokens: 280, yen: 1000, submission: "0192f0a0-0000-7000-8000-000000000001", observer: SEEN.contributor },
-      { parlor: "osm:way/1", observedOn: "2026-10-11", broker: "交換所", game: "pachislot", tier: "20円", prize: "小景品", yen: 500, submission: "0192f0a0-0000-7000-8000-000000000001", observer: SEEN.contributor },
+      { parlor: "osm:way/1", observedOn: "2026-10-11", game: "pachinko", tier: "4円", prize: "小景品", tokens: 280, yen: 1000, submission: "0192f0a0-0000-7000-8000-000000000001", observer: SEEN.contributor },
+      { parlor: "osm:way/1", observedOn: "2026-10-11", game: "pachislot", tier: "20円", prize: "小景品", yen: 500, submission: "0192f0a0-0000-7000-8000-000000000001", observer: SEEN.contributor },
     ])
+  })
+  test("keeps the broker's name where the report gives one", () => {
+    const there = divideReport(amending({ prizes: [PRIZES[0]], broker: "大阪景品センター" })).there as Submission
+    expect(observationLines(record(there)).map((line) => (JSON.parse(line) as { broker: string }).broker)).toEqual(["大阪景品センター"])
   })
 
   test("is none for a parlor the list does not have yet", () => {
@@ -158,6 +167,15 @@ describe("a report that says what a broker paid", () => {
       { field: "observedOn", reason: "seen-ahead" },
     ])
     expect(brokerProblems({ ...amending({ prizes: [PRIZES[1]] }), provenance: { ...SEEN, observedOn: "2026-11-01" } }, "2026-10-11")).toEqual([])
+  })
+  test("leaves out a broker's name of spaces or marks alone, neither refusing it nor keeping it", () => {
+    const refined = parlorSchema.refine?.({ prizes: [PRIZES[0]], broker: "、 " } as never, "amend")
+    expect(refined?.ok ? refined.value : undefined).toEqual({ prizes: [PRIZES[0]] } as never)
+    expect(reasons({ broker: "、" }, "amend")).toEqual(["attributes:required"])
+  })
+  test("names the broker only with a sum received", () => {
+    expect(reasons({ prizes: [PRIZES[1]], broker: "大阪景品センター" }, "amend")).toEqual(["broker:broker-says-nothing"])
+    expect(reasons({ prizes: [PRIZES[0]], broker: "大阪景品センター" }, "amend")).toEqual([])
   })
 })
 

@@ -4,11 +4,14 @@ import { problemText } from "../core/problem-text"
 import { columnLabel, type Column, type Problem, type Field } from "../core/schema"
 import type { SurveyConfig } from "./config"
 import { Button, Check, CloseButton, FieldBox, FieldGroup, inputClass, TextInput } from "./controls"
-import { dayAfter, rowAfter, type Draft, type DraftValue, type RowDraft, type SourceDraft } from "./draft"
+import { dayAfter, emptyValue, newRow, rowAfter, type Draft, type DraftValue, type RowDraft, type SourceDraft } from "./draft"
 import { Turnstile } from "./Turnstile"
 
 /** Where a report being written stands: being edited, on its way, or refused with what to fix. */
 export type Sending = { readonly type: "editing" } | { readonly type: "sending" } | { readonly type: "failed"; readonly message: string; readonly problems: readonly Problem[] }
+
+/** The line drawn among a choice's options: an option that cannot be chosen, since a line itself shows in no phone's picker. */
+const OPTION_BREAK = "──────"
 
 const FieldInput = (props: { readonly field: Field; readonly value: DraftValue | undefined; readonly placeholder?: string | undefined; readonly onChange: (value: DraftValue) => void }): JSX.Element => {
   const text = (): string => (typeof props.value === "string" ? props.value : "")
@@ -18,7 +21,16 @@ const FieldInput = (props: { readonly field: Field; readonly value: DraftValue |
         {(kind) => (
           <select class={inputClass} value={text()} onChange={(event) => props.onChange(event.currentTarget.value)}>
             <option value="">—</option>
-            <For each={kind().options}>{(option) => <option value={option}>{option}</option>}</For>
+            <For each={kind().options}>
+              {(option, at) => (
+                <>
+                  <Show when={kind().breaks?.includes(at())}>
+                    <option disabled>{OPTION_BREAK}</option>
+                  </Show>
+                  <option value={option}>{option}</option>
+                </>
+              )}
+            </For>
           </select>
         )}
       </Match>
@@ -51,12 +63,20 @@ const Cell = (props: { readonly column: Column; readonly row: RowDraft; readonly
  * A table a person adds rows to. Each row is its columns' cells two
  * abreast, so a row of four is two lines on a phone; the columns few rows
  * need are put away behind a small button each group, brought out by it and
- * put away again, emptied, by the ✕ beside them. A row has nothing to
- * remove it by: one left empty is not sent. One more row is added below
- * until the table holds as many as it may. Rows are kept by where they
- * stand, so typing in a cell rebuilds nothing.
+ * put away again, emptied, by the ✕ beside them. A row added holds its
+ * columns' initial values. A row has nothing to remove it by: one left
+ * empty, or holding only what it was added with, is not sent. One more row is added below
+ * until the table holds as many as it may; what is put away beside the
+ * table is brought out from the far end of that line. Rows are kept by
+ * where they stand, so typing in a cell rebuilds nothing.
  */
-const RowsInput = (props: { readonly kind: RowsKind; readonly rows: readonly RowDraft[]; readonly addRow: string; readonly onChange: (rows: readonly RowDraft[]) => void }): JSX.Element => {
+const RowsInput = (props: {
+  readonly kind: RowsKind
+  readonly rows: readonly RowDraft[]
+  readonly addRow: string
+  readonly aside: JSX.Element
+  readonly onChange: (rows: readonly RowDraft[]) => void
+}): JSX.Element => {
   const [brought, setBrought] = createSignal<readonly string[]>([])
   const columns = (): readonly Column[] => props.kind.columns
   const setRow = (at: number, changed: RowDraft): void => props.onChange(props.rows.map((row, index) => (index === at ? changed : row)))
@@ -100,13 +120,14 @@ const RowsInput = (props: { readonly kind: RowsKind; readonly rows: readonly Row
           </div>
         )}
       </Index>
-      <Show when={props.rows.length < props.kind.maxCount}>
-        <div>
-          <Button tone="outline" size="compact" onClick={() => props.onChange([...props.rows, {}])}>
+      <div class="flex flex-wrap items-center gap-2">
+        <Show when={props.rows.length < props.kind.maxCount}>
+          <Button tone="outline" size="compact" onClick={() => props.onChange([...props.rows, newRow(columns())])}>
             {props.kind.add ?? props.addRow}
           </Button>
-        </div>
-      </Show>
+        </Show>
+        <div class="ml-auto flex gap-2">{props.aside}</div>
+      </div>
     </div>
   )
 }
@@ -114,6 +135,64 @@ const RowsInput = (props: { readonly kind: RowsKind; readonly rows: readonly Row
 /** A field's label as the form shows it: with its unit, and marked when a new thing may leave it out. */
 const labelOf = (field: Field, draft: Draft, optional: string): string =>
   `${field.label}${field.kind.type === "number" && field.kind.unit !== undefined ? `（${field.kind.unit}）` : ""}${draft.kind === "add" && !field.required ? optional : ""}`
+
+/** Whether a field's value as the form holds it says anything. */
+const filled = (value: DraftValue | undefined): boolean => (typeof value === "string" ? value !== "" : value === true || (Array.isArray(value) && value.length > 0))
+
+/**
+ * A table with the fields put away beside it: each brought out by its
+ * button facing the table's own, or shown already where it holds
+ * something, under the table, and put away again, emptied, by the small
+ * ✕ at the end of its label's line.
+ */
+const TableWithBeside = (props: {
+  readonly field: Field
+  readonly kind: RowsKind
+  readonly beside: readonly Field[]
+  readonly draft: Draft
+  readonly words: SurveyConfig["words"]
+  readonly setValue: (key: string, value: DraftValue) => void
+}): JSX.Element => {
+  const [brought, setBrought] = createSignal<readonly string[]>([])
+  const out = (field: Field): boolean => brought().includes(field.key) || filled(props.draft.values[field.key])
+  const putAway = (field: Field): void => {
+    setBrought(brought().filter((key) => key !== field.key))
+    props.setValue(field.key, emptyValue(field))
+  }
+  return (
+    <FieldGroup label={labelOf(props.field, props.draft, props.words.ui.optional)} hint={props.field.hint}>
+      <div class="flex flex-col gap-2">
+      <RowsInput
+        kind={props.kind}
+        rows={((value) => (typeof value === "object" ? value : []))(props.draft.values[props.field.key])}
+        addRow={props.words.ui.addRow}
+        aside={
+          <For each={props.beside.filter((field) => !out(field))}>
+            {(field) => (
+              <Button tone="outline" size="compact" onClick={() => setBrought([...brought(), field.key])}>
+                {field.tuckedBeside?.add}
+              </Button>
+            )}
+          </For>
+        }
+        onChange={(rows) => props.setValue(props.field.key, rows)}
+      />
+      <For each={props.beside.filter(out)}>
+        {(field) => (
+          <div class="flex flex-col gap-1" role="group" aria-label={labelOf(field, props.draft, props.words.ui.optional)}>
+            <div class="flex items-center justify-between gap-2">
+              <span class="text-xs font-semibold text-text-secondary">{labelOf(field, props.draft, props.words.ui.optional)}</span>
+              <CloseButton label={field.tuckedBeside?.away ?? ""} size="small" onClick={() => putAway(field)} />
+            </div>
+            <FieldInput field={field} value={props.draft.values[field.key]} onChange={(value) => props.setValue(field.key, value)} />
+            <Show when={field.hint}>{(hint) => <span class="text-xs text-text-muted">{hint()}</span>}</Show>
+          </div>
+        )}
+      </For>
+      </div>
+    </FieldGroup>
+  )
+}
 
 /** The fields a report asks for: every field for a new thing, the correctable ones for a correction. Photos wait for a place to keep them. */
 const fieldsFor = (config: SurveyConfig, draft: Draft): readonly Field[] =>
@@ -207,7 +286,7 @@ export const ComposePanel = (props: {
         <Show when={props.draft.subject}>{(subject) => <p class="text-sm text-text-secondary">{subject().name}</p>}</Show>
       </div>
 
-      <For each={fieldsFor(props.config, props.draft)}>
+      <For each={fieldsFor(props.config, props.draft).filter((field) => field.tuckedBeside === undefined)}>
         {(field) => (
           <Show
             when={field.kind.type === "rows" ? field.kind : undefined}
@@ -218,9 +297,14 @@ export const ComposePanel = (props: {
             }
           >
             {(kind) => (
-              <FieldGroup label={labelOf(field, props.draft, words.ui.optional)} hint={field.hint}>
-                <RowsInput kind={kind()} rows={((value) => (typeof value === "object" ? value : []))(props.draft.values[field.key])} addRow={words.ui.addRow} onChange={(rows) => setValue(field.key, rows)} />
-              </FieldGroup>
+              <TableWithBeside
+                field={field}
+                kind={kind()}
+                beside={fieldsFor(props.config, props.draft).filter((other) => other.tuckedBeside?.field === field.key)}
+                draft={props.draft}
+                words={words}
+                setValue={setValue}
+              />
             )}
           </Show>
         )}

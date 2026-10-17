@@ -1,6 +1,6 @@
 import { Err, isForbidden, looksLikePlaceholder, Ok, type Attributes, type AttributeValue, type Field, type Problem, type Result, type Row, type SurveySchema } from "open-location-survey-kit"
 
-import { CORNERS, wordsByCorner } from "./corners"
+import { CORNER_BREAKS, CORNERS, wordsByCorner } from "./corners"
 import { PREFECTURES } from "./prefectures"
 
 /** Words a parlor's name is made of that happen to hold a forbidden one: パチンコ holds what it holds. */
@@ -136,12 +136,25 @@ const tiersProblem = (rows: readonly Row[]): Problem | undefined => {
 }
 
 /**
+ * Attributes without a broker's name that names nothing — spaces or marks
+ * alone, such as 「、」 — which is no name to keep, and is left out rather
+ * than refused or kept as 「交換所」.
+ */
+const withoutUnnamedBroker = (attributes: Attributes): Attributes => {
+  const broker = text(attributes, "broker")
+  return broker === undefined || LETTER.test(broker.normalize("NFKC")) ? attributes : Object.fromEntries(Object.entries(attributes).filter(([key]) => key !== "broker"))
+}
+
+/**
  * The rules of a parlor beyond each field's kind: a real name with its
  * branch, a reading and search words that are not junk, an address down
  * to the municipality and the street number, in the prefecture chosen, and
- * corners that read as corners.
+ * corners that read as corners. A broker's name that names nothing is
+ * left out.
  */
-export const refineParlor = (attributes: Attributes): Result<Attributes, readonly Problem[]> => {
+export const refineParlor = (sent: Attributes): Result<Attributes, readonly Problem[]> => {
+  const attributes = withoutUnnamedBroker(sent)
+  if (Object.keys(attributes).length === 0) return Err([{ field: "attributes", reason: "required" }])
   const name = text(attributes, "name")
   const reading = text(attributes, "reading")
   const keywords = attributes["keywords"]
@@ -156,6 +169,7 @@ export const refineParlor = (attributes: Attributes): Result<Attributes, readonl
     settledAddress === undefined || settledAddress.ok ? undefined : settledAddress.error,
     isRows(tiers) ? tiersProblem(tiers) : undefined,
     isRows(prizes) ? prizesProblem(prizes) : undefined,
+    attributes["broker"] !== undefined && !(isRows(prizes) && prizes.some((row) => row["yen"] !== undefined)) ? { field: "broker", reason: "broker-says-nothing" } : undefined,
   ].filter((problem): problem is Problem => problem !== undefined)
   if (problems.length > 0) return Err(problems)
   return Ok(settledAddress?.ok ? { ...attributes, address: settledAddress.value } : attributes)
@@ -209,7 +223,7 @@ const TIERS: Field = {
     add: "レート・コーナーを追加",
     tucks: { replay: { add: "再プレイ手数料を追加", away: "再プレイ手数料をやめる" } },
     columns: [
-      { key: "corner", label: "コーナー", kind: { type: "choice", options: CORNER_OPTIONS }, required: true, fills: Object.fromEntries(CORNERS.map((corner) => [corner.label, { rental: String(corner.rental) }] as const)) },
+      { key: "corner", label: "コーナー", kind: { type: "choice", options: CORNER_OPTIONS, breaks: CORNER_BREAKS }, required: true, fills: Object.fromEntries(CORNERS.map((corner) => [corner.label, { rental: String(corner.rental) }] as const)) },
       { key: "rental", label: "貸し数", kind: { type: "number", min: 1, max: MOST_TOKENS }, required: false, labelBy: { column: "corner", labels: wordsByCorner({ pachinko: "貸玉数", pachislot: "貸メダル数" }) } },
       { key: "replayPaidOut", label: "再プレイ払出", kind: { type: "number", min: 1, max: MOST_TOKENS }, required: false, tucked: "replay" },
       { key: "replayDeducted", label: "再プレイ減数", kind: { type: "number", min: 1, max: MOST_TOKENS }, required: false, tucked: "replay" },
@@ -233,14 +247,29 @@ export const PRIZES: Field = {
     maxCount: 24,
     add: "特殊景品ラインナップを追加",
     columns: [
-      { key: "name", label: "景品の名前", kind: { type: "text", maxLength: 10 }, required: true, placeholder: "大景品" },
-      { key: "corner", label: "コーナー", kind: { type: "choice", options: CORNER_OPTIONS }, required: true },
-      { key: "tokens", label: "必要な数", kind: { type: "number", min: 1, max: MOST_TOKENS }, required: false, labelBy: { column: "corner", labels: wordsByCorner({ pachinko: "必要な玉数", pachislot: "必要なメダル数" }) } },
+      { key: "name", label: "景品の名前", kind: { type: "text", maxLength: 10 }, required: true, placeholder: "小、中、大など", initial: "小" },
+      { key: "corner", label: "コーナー", kind: { type: "choice", options: CORNER_OPTIONS, breaks: CORNER_BREAKS }, required: true },
+      { key: "tokens", label: "必要な交換数", kind: { type: "number", min: 1, max: MOST_TOKENS }, required: false, labelBy: { column: "corner", labels: wordsByCorner({ pachinko: "必要な玉数", pachislot: "必要なメダル数" }) } },
       { key: "yen", label: "交換所で受け取った額", kind: { type: "number", min: 1, max: MOST_YEN, unit: "円" }, required: false },
     ],
   },
   required: false,
   amendable: true,
+}
+
+/**
+ * The name of the broker that bought the special prizes, said with what it
+ * paid. Most brokers have none a player would know, so it is put away
+ * beside the prizes until asked for.
+ */
+export const BROKER: Field = {
+  key: "broker",
+  label: "交換所名",
+  hint: "特殊景品を買い取る交換所に名前があれば",
+  kind: { type: "text", maxLength: 30 },
+  required: false,
+  amendable: true,
+  tuckedBeside: { field: "prizes", add: "交換所名も追加", away: "交換所名をやめる" },
 }
 
 /**
@@ -269,6 +298,7 @@ export const parlorSchema: SurveySchema = {
     { key: "keywords", label: "検索語", hint: "略称などを読点で区切って（例：Dステ、ディーステ）", kind: { type: "words", maxCount: 10, maxLength: 30 }, required: false, amendable: true },
     TIERS,
     PRIZES,
+    BROKER,
   ],
   refine: refineParlor,
   sameName: sameParlorName,
@@ -286,7 +316,8 @@ export const parlorSchema: SurveySchema = {
     "not-whole": "の数は整数で入れてください",
     "replay-half": "の再プレイは、払出と減数の両方を入れてください",
     "repeated-tier": "に同じコーナーが 2 回入っています",
-    "prize-says-nothing": "は、必要な数か交換所で受け取った額のどちらかを入れてください",
+    "prize-says-nothing": "は、必要な交換数か交換所で受け取った額のどちらかを入れてください",
+    "broker-says-nothing": "は、交換所で受け取った額のある「特殊景品」の行と一緒に入れてください",
     "repeated-prize": "に同じコーナーの同じ景品が 2 回入っています",
     "not-seen": "は、交換所で受け取った額を入れるときは「現地で確認した」にしてください",
     "seen-ahead": "は、交換所で受け取った額を入れるときは今日までの日付にしてください",

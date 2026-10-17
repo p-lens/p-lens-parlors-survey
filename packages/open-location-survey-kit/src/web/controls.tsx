@@ -82,16 +82,16 @@ export const PlusIcon = (props: { readonly class?: string }): JSX.Element => (
   </svg>
 )
 
-/** A ✕ in the corner of what it puts away. */
-export const CloseButton = (props: { readonly label: string; readonly onClick: () => void }): JSX.Element => (
+/** A ✕ in the corner of what it puts away; a small one beside a field's label. */
+export const CloseButton = (props: { readonly label: string; readonly size?: "regular" | "small"; readonly onClick: () => void }): JSX.Element => (
   <button
     type="button"
-    class="inline-flex size-8 shrink-0 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-surface-3 hover:text-text-primary"
+    class={`inline-flex ${props.size === "small" ? "size-5" : "size-8"} shrink-0 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-surface-3 hover:text-text-primary`}
     aria-label={props.label}
     title={props.label}
     onClick={() => props.onClick()}
   >
-    <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <svg class={props.size === "small" ? "size-3.5" : "size-5"} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
       <path d="M18 6 6 18" />
       <path d="m6 6 12 12" />
     </svg>

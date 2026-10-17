@@ -23,21 +23,18 @@ const cornerOf = (game: Corner["game"], rate: number): Corner => ({
   rental: SUMMED_FOR / rate,
 })
 
-/** The corners a report may choose, the commonest first: most parlors have the first four and few have the last. */
-export const CORNERS: readonly Corner[] = [
-  cornerOf("pachinko", 4),
-  cornerOf("pachinko", 1),
-  cornerOf("pachislot", 20),
-  cornerOf("pachislot", 5),
-  cornerOf("pachinko", 2),
-  cornerOf("pachinko", 0.5),
-  cornerOf("pachislot", 10),
-  cornerOf("pachislot", 2),
-  cornerOf("pachislot", 1),
-  cornerOf("pachinko", 0.25),
-  cornerOf("pachinko", 0.2),
-  cornerOf("pachislot", 0.5),
+/** The corners a report may choose, by how many parlors have them: the four most have, those some have, and those few have. */
+export const CORNER_GROUPS: readonly (readonly Corner[])[] = [
+  [cornerOf("pachinko", 4), cornerOf("pachinko", 1), cornerOf("pachislot", 20), cornerOf("pachislot", 5)],
+  [cornerOf("pachinko", 2), cornerOf("pachinko", 0.5), cornerOf("pachislot", 10), cornerOf("pachislot", 8), cornerOf("pachislot", 2), cornerOf("pachislot", 1)],
+  [cornerOf("pachinko", 0.25), cornerOf("pachinko", 0.2), cornerOf("pachislot", 0.5)],
 ]
+
+/** The corners a report may choose, the commonest first. */
+export const CORNERS: readonly Corner[] = CORNER_GROUPS.flat()
+
+/** Where one group of corners ends and the next begins, by its first corner's place among them all. */
+export const CORNER_BREAKS: readonly number[] = CORNER_GROUPS.slice(0, -1).map((_, at) => CORNER_GROUPS.slice(0, at + 1).flat().length)
 
 /** The corner a row of a report chose, by what the form calls it. */
 export const cornerCalled = (label: unknown): Corner | undefined => CORNERS.find((corner) => corner.label === label)

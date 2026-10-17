@@ -11,9 +11,10 @@ their rates — each corner chosen from the corners there are, 4円パチンコ 
 20円スロット, with what it rents at written in as it is chosen, and what it
 replays at — and its special prizes, each kind with the balls or medals the
 parlor takes for it and what the broker (特殊景品交換所, the booth that buys
-special prizes) paid the reporter for it. It is one report, published apart:
-the corners, and what each prize takes, in the parlor list's `tiers.jsonl`;
-and what the prizes came to at the broker, which is not the parlor, in a
+special prizes) paid the reporter for it, and the broker's name where it has
+one. It is one report, published apart: the corners, and what each prize
+takes, in the parlor list's `tiers.jsonl`; and what the prizes came to at the
+broker, and its name, which is not the parlor's, in a
 repository of its own,
 [p-lens-brokers](https://github.com/p-lens/p-lens-brokers) — not as a rate,
 but as a thing a player saw happen on a day. The server divides the report in
