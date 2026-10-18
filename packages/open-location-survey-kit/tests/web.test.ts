@@ -9,6 +9,7 @@ import { clampSize } from "../src/web/frame/resize"
 import { blocksOfMarkdown } from "../src/web/markdown"
 import { answeredAddress, callerAddress, returnAddressOf } from "../src/web/caller"
 import { keptStands } from "../src/web/list"
+import { narrowOffered, valuesOfJsonl } from "../src/web/offered"
 import { addressOf, findOf, paneOf, parentOf, placeOf, showingOf, type Place } from "../src/web/place"
 import { comparable, searchSubjects } from "../src/web/search"
 import { aedSchema, CONTRIBUTOR, JUDGING } from "./fixtures"
@@ -296,5 +297,19 @@ describe("callers", () => {
 
   test("an answer of nothing goes back as the caller's address was", () => {
     expect(answeredAddress("https://app.example/back?game=a", {})).toBe("https://app.example/back?game=a")
+  })
+})
+
+describe("offered values", () => {
+  test("are each text under the key once, trimmed, passing over what is not one", () => {
+    const text = ['{"name":" 甲 "}', '{"name":"乙"}', '{"name":"甲"}', '{"name":3}', '{"other":"丙"}', "not json", ""].join("\n")
+    expect(valuesOfJsonl(text, "name")).toEqual(["甲", "乙"])
+  })
+
+  test("narrow to what holds the text, beginnings first, in the order given", () => {
+    const values = ["(社)中央リサイクル", "中央商事", "東西中央"]
+    expect(narrowOffered(values, "")).toEqual(values)
+    expect(narrowOffered(values, "中央")).toEqual(["中央商事", "(社)中央リサイクル", "東西中央"])
+    expect(narrowOffered(values, "北")).toEqual([])
   })
 })

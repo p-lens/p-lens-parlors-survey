@@ -12,6 +12,7 @@ import { BackIcon, HelpIcon, PanelIcon } from "./controls"
 import { contributorId } from "./contributor"
 import { draftFor, envelopeOf, localDay, needsPosition, type Draft } from "./draft"
 import { readSurveyList, type ListError, type SurveyList } from "./list"
+import { readOffers, type Offers } from "./offered"
 import { MapButtons } from "./MapButtons"
 import { LicensesPage, PrivacyPage } from "./DocumentPage"
 import { createArrangement } from "./frame/arrangement"
@@ -101,7 +102,7 @@ const listErrorText = (error: ListError, words: Words): string => (error.type ==
  * A new thing is reported from the map, so starting one from the list goes by
  * way of it: back from the form is the map, and back again the list.
  */
-const Survey = (props: { readonly config: SurveyConfig; readonly list: SurveyList; readonly navigation: Navigation; readonly find: string }): JSX.Element => {
+const Survey = (props: { readonly config: SurveyConfig; readonly list: SurveyList; readonly offers: Offers; readonly navigation: Navigation; readonly find: string }): JSX.Element => {
   const { config, navigation } = props
   const arrangement = createArrangement(NARROW_BELOW)
   const [work, setWork] = createSignal<Work | undefined>()
@@ -298,6 +299,7 @@ const Survey = (props: { readonly config: SurveyConfig; readonly list: SurveyLis
               {(current) => (
                 <ComposePanel
                   config={config}
+                  offers={props.offers}
                   draft={current().draft}
                   sending={current().sending}
                   today={today}
@@ -352,6 +354,7 @@ export const SurveyApp = (props: { readonly config: SurveyConfig }): JSX.Element
   const find = findOf(window.location.search)
   const navigation = createNavigation()
   const [list] = createResource(() => readSurveyList(props.config.listBase, props.config.listFiles, props.config.schema))
+  const [offers] = createResource(() => readOffers(props.config.offered))
   const loaded = (): SurveyList | undefined => {
     const read = list()
     return read?.ok ? read.value : undefined
@@ -363,7 +366,7 @@ export const SurveyApp = (props: { readonly config: SurveyConfig }): JSX.Element
   return (
     <>
       <Switch fallback={<p class="p-6 text-sm text-text-secondary">{props.config.words.ui.listLoading}</p>}>
-        <Match when={loaded()}>{(value) => <Survey config={props.config} list={value()} navigation={navigation} find={find} />}</Match>
+        <Match when={loaded()}>{(value) => <Survey config={props.config} list={value()} offers={offers() ?? {}} navigation={navigation} find={find} />}</Match>
         <Match when={failed()}>{(error) => <p class="p-6 text-sm text-negative">{listErrorText(error(), props.config.words)}</p>}</Match>
       </Switch>
       <Switch>

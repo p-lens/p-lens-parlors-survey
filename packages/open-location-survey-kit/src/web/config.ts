@@ -3,6 +3,7 @@ import type { ListedSubject } from "../core/listed"
 import type { SurveySchema } from "../core/schema"
 import type { Words } from "../core/words"
 import type { Callers } from "./caller"
+import type { OfferedSource } from "./offered"
 
 /**
  * What makes a survey this survey and nobody else's: its name, what it says
@@ -54,6 +55,8 @@ export interface SurveyConfig {
   readonly listBase: string | undefined
   /** The list's JSONL files, read and merged in order. */
   readonly listFiles: readonly string[]
+  /** Where the text fields that offer what others have already given read it from, by field key. */
+  readonly offered: Readonly<Record<string, OfferedSource>>
   readonly basemap: Basemap
   /** Where the map opens. */
   readonly start: { readonly latitude: number; readonly longitude: number; readonly zoom: number }

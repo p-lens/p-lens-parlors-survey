@@ -4,6 +4,8 @@ import { problemText } from "../core/problem-text"
 import { columnLabel, type Column, type Problem, type Field } from "../core/schema"
 import type { SurveyConfig } from "./config"
 import { Button, Check, CloseButton, FieldBox, FieldGroup, inputClass, TextInput } from "./controls"
+import { OfferedInput } from "./OfferedInput"
+import type { Offers } from "./offered"
 import { dayAfter, emptyValue, newRow, rowAfter, type Draft, type DraftValue, type RowDraft, type SourceDraft } from "./draft"
 import { Turnstile } from "./Turnstile"
 
@@ -13,7 +15,14 @@ export type Sending = { readonly type: "editing" } | { readonly type: "sending" 
 /** The line drawn among a choice's options: an option that cannot be chosen, since a line itself shows in no phone's picker. */
 const OPTION_BREAK = "──────"
 
-const FieldInput = (props: { readonly field: Field; readonly value: DraftValue | undefined; readonly placeholder?: string | undefined; readonly onChange: (value: DraftValue) => void }): JSX.Element => {
+const FieldInput = (props: {
+  readonly field: Field
+  readonly value: DraftValue | undefined
+  readonly placeholder?: string | undefined
+  /** What others have already given for it, offered as it is typed. */
+  readonly offers?: readonly string[] | undefined
+  readonly onChange: (value: DraftValue) => void
+}): JSX.Element => {
   const text = (): string => (typeof props.value === "string" ? props.value : "")
   return (
     <Switch>
@@ -39,6 +48,9 @@ const FieldInput = (props: { readonly field: Field; readonly value: DraftValue |
       </Match>
       <Match when={props.field.kind.type === "number" ? props.field.kind : undefined}>
         {(kind) => <TextInput type="number" inputMode="decimal" min={kind().min} max={kind().max} placeholder={props.placeholder} value={text()} onInput={(event) => props.onChange(event.currentTarget.value)} />}
+      </Match>
+      <Match when={props.field.kind.type === "text" && props.offers !== undefined && props.offers.length > 0 ? props.offers : undefined}>
+        {(offers) => <OfferedInput value={text()} offers={offers()} placeholder={props.placeholder} onChange={props.onChange} />}
       </Match>
       <Match when={props.field.kind.type === "text" || props.field.kind.type === "kana" || props.field.kind.type === "words"}>
         <TextInput placeholder={props.placeholder} value={text()} onInput={(event) => props.onChange(event.currentTarget.value)} />
@@ -151,6 +163,7 @@ const TableWithBeside = (props: {
   readonly beside: readonly Field[]
   readonly draft: Draft
   readonly words: SurveyConfig["words"]
+  readonly offers: Offers
   readonly setValue: (key: string, value: DraftValue) => void
 }): JSX.Element => {
   const [brought, setBrought] = createSignal<readonly string[]>([])
@@ -184,7 +197,7 @@ const TableWithBeside = (props: {
               <span class="text-xs font-semibold text-text-secondary">{labelOf(field, props.draft, props.words.ui.optional)}</span>
               <CloseButton label={field.tuckedBeside?.away ?? ""} size="small" onClick={() => putAway(field)} />
             </div>
-            <FieldInput field={field} value={props.draft.values[field.key]} onChange={(value) => props.setValue(field.key, value)} />
+            <FieldInput field={field} value={props.draft.values[field.key]} offers={props.offers[field.key]} onChange={(value) => props.setValue(field.key, value)} />
             <Show when={field.hint}>{(hint) => <span class="text-xs text-text-muted">{hint()}</span>}</Show>
           </div>
         )}
@@ -262,6 +275,8 @@ const SourceFields = (props: { readonly config: SurveyConfig; readonly source: S
  */
 export const ComposePanel = (props: {
   readonly config: SurveyConfig
+  /** What each field offers, as far as it has been read. */
+  readonly offers: Offers
   readonly draft: Draft
   readonly sending: Sending
   readonly today: string
@@ -292,7 +307,7 @@ export const ComposePanel = (props: {
             when={field.kind.type === "rows" ? field.kind : undefined}
             fallback={
               <FieldBox label={labelOf(field, props.draft, words.ui.optional)} hint={field.hint}>
-                <FieldInput field={field} value={props.draft.values[field.key]} onChange={(value) => setValue(field.key, value)} />
+                <FieldInput field={field} value={props.draft.values[field.key]} offers={props.offers[field.key]} onChange={(value) => setValue(field.key, value)} />
               </FieldBox>
             }
           >
@@ -303,6 +318,7 @@ export const ComposePanel = (props: {
                 beside={fieldsFor(props.config, props.draft).filter((other) => other.tuckedBeside?.field === field.key)}
                 draft={props.draft}
                 words={words}
+                offers={props.offers}
                 setValue={setValue}
               />
             )}

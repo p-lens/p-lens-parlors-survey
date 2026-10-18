@@ -4,7 +4,7 @@ import { columnLabel, readAttributes, type Column } from "open-location-survey-k
 import type { Submission, SurveyRecord } from "open-location-survey-kit"
 
 import { brokerProblems, divideReport, observationLines } from "../src/broker"
-import { parlorSchema } from "../src/parlor"
+import { brokerOrder, parlorSchema } from "../src/parlor"
 
 const PARLOR = { name: "マルハン梅田店", reading: "マルハンウメダテン", prefecture: "大阪府", address: "大阪府大阪市北区小松原町4-16", keywords: ["梅田マルハン"] }
 
@@ -179,3 +179,9 @@ describe("a report that says what a broker paid", () => {
   })
 })
 
+
+describe("the order brokers' names are offered in", () => {
+  test("puts a name opening with its legal form in brackets first", () => {
+    expect(["関西三本珈琲(株)", "(一社)全国流通商適正化協会", "（株）東西", "あおば"].toSorted(brokerOrder)).toEqual(["(一社)全国流通商適正化協会", "（株）東西", "あおば", "関西三本珈琲(株)"])
+  })
+})

@@ -1,4 +1,4 @@
-import { parlorSchema } from "@p-lens-survey/parlor-schema"
+import { brokerOrder, parlorSchema } from "@p-lens-survey/parlor-schema"
 import { render } from "solid-js/web"
 import { GSI_PALE, japanese, type ListedSubject } from "open-location-survey-kit"
 import { SurveyApp, type SurveyConfig, type TakenReport } from "open-location-survey-kit/web"
@@ -48,6 +48,7 @@ const config: SurveyConfig = {
   branding: { ...branding, privacy },
   listBase: import.meta.env.VITE_LIST_URL,
   listFiles: ["parlors.jsonl", "unplaced.jsonl"],
+  offered: { broker: { base: import.meta.env.VITE_BROKERS_URL, file: "observations.jsonl", key: "broker", order: brokerOrder } },
   basemap: GSI_PALE,
   start: { latitude: 36.2, longitude: 137.8, zoom: 4.6 },
   groupField: "prefecture",

@@ -262,6 +262,16 @@ export const PRIZES: Field = {
  * paid. Most brokers have none a player would know, so it is put away
  * beside the prizes until asked for.
  */
+/**
+ * The order brokers' names already given are offered in: a name opening
+ * with its legal form in brackets — (一社)全国流通商適正化協会, (株)… — ahead
+ * of the rest, then as Japanese sorts them.
+ */
+export const brokerOrder = (left: string, right: string): number => {
+  const bracketed = (name: string): boolean => /^[(（]/.test(name.trim())
+  return Number(bracketed(right)) - Number(bracketed(left)) || left.localeCompare(right, "ja")
+}
+
 export const BROKER: Field = {
   key: "broker",
   label: "交換所名",

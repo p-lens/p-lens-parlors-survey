@@ -74,7 +74,7 @@ const stillPublished = async (url: URL, kept: Response): Promise<boolean> => {
  * published one cannot be read at all, the kept one is read rather than
  * nothing.
  */
-const fileText = async (base: string, file: string): Promise<Result<string, ListError>> => {
+export const fileText = async (base: string, file: string): Promise<Result<string, ListError>> => {
   const url = new URL(file, new URL(base, window.location.href))
   const store = await keptFiles()
   const kept = await keptIn(store, url)
