@@ -128,6 +128,14 @@ describe("a parlor's report divided between the parlor and the broker", () => {
     expect([paid.here, paid.there?.observation.kind === "amend" && paid.there.observation.attributes]).toEqual([undefined, { prizes: [PRIZES[2]] }] as never)
   })
 
+  test("gives the broker its name alone where the report names it and says no sum", () => {
+    const { here, there } = divideReport(amending({ prizes: [PRIZES[1]], broker: "大阪景品センター" }))
+    expect(here?.observation).toEqual({ kind: "amend", subject: SUBJECT, attributes: { prizes: [PRIZES[1]] } } as never)
+    expect(there?.observation).toEqual({ kind: "amend", subject: SUBJECT, attributes: { broker: "大阪景品センター" } } as never)
+    const named = divideReport(amending({ broker: "大阪景品センター" }))
+    expect([named.here, named.there?.observation.kind === "amend" && named.there.observation.attributes]).toEqual([undefined, { broker: "大阪景品センター" }] as never)
+  })
+
   test("names a new parlor to the broker by its name, with where it was placed", () => {
     const position = { latitude: 34.7, longitude: 135.5, method: "gps" as const, basemap: undefined }
     const { here, there } = divideReport({ observation: { kind: "add", attributes: { name: "新規店梅田", prizes: [PRIZES[0]] } as never, position }, provenance: SEEN })
@@ -151,6 +159,13 @@ describe("what was seen at a broker, as lines of the observations", () => {
     expect(observationLines(record(there)).map((line) => (JSON.parse(line) as { broker: string }).broker)).toEqual(["大阪景品センター"])
   })
 
+  test("is one line of the name alone where the report names the broker and says no sum", () => {
+    const there = divideReport(amending({ broker: "大阪景品センター" })).there as Submission
+    expect(observationLines(record(there)).map((line) => JSON.parse(line) as unknown)).toEqual([
+      { parlor: "osm:way/1", observedOn: "2026-10-11", broker: "大阪景品センター", submission: "0192f0a0-0000-7000-8000-000000000001", observer: SEEN.contributor },
+    ])
+  })
+
   test("is none for a parlor the list does not have yet", () => {
     const position = { latitude: 34.7, longitude: 135.5, method: "gps" as const, basemap: undefined }
     expect(observationLines(record({ observation: { kind: "add", attributes: { name: "新規店梅田", prizes: [PRIZES[0]] } as never, position }, provenance: SEEN }))).toEqual([])
@@ -168,14 +183,17 @@ describe("a report that says what a broker paid", () => {
     ])
     expect(brokerProblems({ ...amending({ prizes: [PRIZES[1]] }), provenance: { ...SEEN, observedOn: "2026-11-01" } }, "2026-10-11")).toEqual([])
   })
+  test("holds a broker's name alone to the same: seen on site, on a day already come", () => {
+    expect(brokerProblems({ ...amending({ broker: "大阪景品センター" }), provenance: { ...SEEN, source: { kind: "publication", url: "https://example.jp/" } } }, "2026-10-11")).toEqual([{ field: "source", reason: "not-seen" }])
+  })
   test("leaves out a broker's name of spaces or marks alone, neither refusing it nor keeping it", () => {
     const refined = parlorSchema.refine?.({ prizes: [PRIZES[0]], broker: "、 " } as never, "amend")
     expect(refined?.ok ? refined.value : undefined).toEqual({ prizes: [PRIZES[0]] } as never)
     expect(reasons({ broker: "、" }, "amend")).toEqual(["attributes:required"])
   })
-  test("names the broker only with a sum received", () => {
-    expect(reasons({ prizes: [PRIZES[1]], broker: "大阪景品センター" }, "amend")).toEqual(["broker:broker-says-nothing"])
-    expect(reasons({ prizes: [PRIZES[0]], broker: "大阪景品センター" }, "amend")).toEqual([])
+  test("names the broker with a sum received or without", () => {
+    expect(reasons({ prizes: [PRIZES[1]], broker: "大阪景品センター" }, "amend")).toEqual([])
+    expect(reasons({ broker: "大阪景品センター" }, "amend")).toEqual([])
   })
 })
 

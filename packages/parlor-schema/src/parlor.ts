@@ -169,7 +169,6 @@ export const refineParlor = (sent: Attributes): Result<Attributes, readonly Prob
     settledAddress === undefined || settledAddress.ok ? undefined : settledAddress.error,
     isRows(tiers) ? tiersProblem(tiers) : undefined,
     isRows(prizes) ? prizesProblem(prizes) : undefined,
-    attributes["broker"] !== undefined && !(isRows(prizes) && prizes.some((row) => row["yen"] !== undefined)) ? { field: "broker", reason: "broker-says-nothing" } : undefined,
   ].filter((problem): problem is Problem => problem !== undefined)
   if (problems.length > 0) return Err(problems)
   return Ok(settledAddress?.ok ? { ...attributes, address: settledAddress.value } : attributes)
@@ -327,10 +326,9 @@ export const parlorSchema: SurveySchema = {
     "replay-half": "の再プレイは、払出と減数の両方を入れてください",
     "repeated-tier": "に同じコーナーが 2 回入っています",
     "prize-says-nothing": "は、必要な交換数か交換所で受け取った額のどちらかを入れてください",
-    "broker-says-nothing": "は、交換所で受け取った額のある「特殊景品」の行と一緒に入れてください",
     "repeated-prize": "に同じコーナーの同じ景品が 2 回入っています",
-    "not-seen": "は、交換所で受け取った額を入れるときは「現地で確認した」にしてください",
-    "seen-ahead": "は、交換所で受け取った額を入れるときは今日までの日付にしてください",
+    "not-seen": "は、交換所で受け取った額や交換所名を入れるときは「現地で確認した」にしてください",
+    "seen-ahead": "は、交換所で受け取った額や交換所名を入れるときは今日までの日付にしてください",
     listed: "はすでに一覧にある店舗の名前です。同じ店舗なら一覧から選んで報告し、別の店舗なら支店名まで入れてください",
   },
 }

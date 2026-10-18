@@ -12,7 +12,7 @@ their rates — each corner chosen from the corners there are, 4円パチンコ 
 replays at — and its special prizes, each kind with the balls or medals the
 parlor takes for it and what the broker (特殊景品交換所, the booth that buys
 special prizes) paid the reporter for it, and the broker's name where it has
-one. It is one report, published apart: the corners, and what each prize
+one, with a sum or without. It is one report, published apart: the corners, and what each prize
 takes, in the parlor list's `tiers.jsonl`; and what the prizes came to at the
 broker, and its name, which is not the parlor's, in a
 repository of its own,
@@ -20,7 +20,8 @@ repository of its own,
 but as a thing a player saw happen on a day. The server divides the report in
 two, and no yen is filed in the parlor list's issue. What was seen at a listed
 parlor is added to p-lens-brokers' `data/observations.jsonl` as the report is
-taken, a line a row, and published as it is, nobody reading it first.
+taken, a line a row — or a line of the broker's name alone where the report
+names it and says no sum — and published as it is, nobody reading it first.
 
 It is [open-location-survey-kit](packages/open-location-survey-kit) given a
 parlor schema. The kit collects facts first-hand, with provenance, under CC0,
@@ -192,7 +193,7 @@ It is made as above, but for three things:
 
 Make the labels `survey`, `broker` and `add` on p-lens-brokers. With any of the
 three values, or the private key put in below, missing, a report that says
-what was received at a broker is not taken.
+what was received at a broker, or names one, is not taken.
 
 **2. Make a Cloudflare Turnstile site**
 
