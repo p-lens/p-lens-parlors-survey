@@ -89,9 +89,9 @@ describe("parlorSchema", () => {
     expect(cap === undefined ? [] : [columnLabel(cap, {}), columnLabel(cap, { corner: "4円パチンコ" }), columnLabel(cap, { corner: "20円スロット" })]).toEqual(["再プレイ上限", "再プレイ上限玉数", "再プレイ上限メダル数"])
   })
 
-  test("starts a prize as 小 for 500円, and writes in what a broker usually pays for 極小, 小, 中 and 大", () => {
+  test("starts a prize empty, a sum being only what a reporter received, and writes in what a broker usually pays for 極小, 小, 中 and 大 once it is named", () => {
     const [name, , , yen] = (parlorSchema.fields.find((field) => field.key === "prizes")?.kind as { readonly columns: readonly Column[] }).columns
-    expect([name?.initial, yen?.key, yen?.initial]).toEqual(["小", "yen", "500"])
+    expect([name?.initial, yen?.key, yen?.initial]).toEqual([undefined, "yen", undefined])
     expect(name?.fills).toEqual({ 極小: { yen: "100" }, 小: { yen: "500" }, 中: { yen: "1000" }, 大: { yen: "5000" } })
   })
 
