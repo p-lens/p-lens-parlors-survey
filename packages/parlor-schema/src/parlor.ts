@@ -261,7 +261,7 @@ export const PRIZES: Field = {
     maxCount: 24,
     add: "特殊景品ラインナップを追加",
     columns: [
-      { key: "name", label: "景品の名前", kind: { type: "text", maxLength: 10 }, required: true, placeholder: "小、中、大、極小など", fills: PRIZE_YEN },
+      { key: "name", label: "景品の名前", kind: { type: "text", maxLength: 10 }, required: true, placeholder: "小、中、大、極小 など", fills: PRIZE_YEN },
       { key: "corner", label: "コーナー", kind: { type: "choice", options: CORNER_OPTIONS, breaks: CORNER_BREAKS }, required: true },
       { key: "tokens", label: "必要な交換数", kind: { type: "number", min: 1, max: MOST_TOKENS }, required: false, labelBy: { column: "corner", labels: wordsByCorner({ pachinko: "必要な玉数", pachislot: "必要なメダル数" }) } },
       { key: "yen", label: "交換所で受け取った額", kind: { type: "number", min: 1, max: MOST_YEN, unit: "円" }, required: false },
