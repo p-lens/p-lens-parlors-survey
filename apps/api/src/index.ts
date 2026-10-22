@@ -1,4 +1,4 @@
-import { brokerSchema, divideReport, exchangeProblems, observationLines, parlorSchema } from "@p-lens-survey/parlor-schema"
+import { brokerSchema, divideReport, observationLines, parlorSchema } from "@p-lens-survey/parlor-schema"
 import { GSI_PALE, GSI_PHOTO, GSI_STANDARD, issueOf, japanese } from "open-location-survey-kit"
 import { githubAppLineSink, githubAppSink, surveyWorker, type Challenge, type GitHubAppConfig, type RecordSink } from "open-location-survey-kit/server"
 
@@ -85,7 +85,7 @@ export default surveyWorker<Env>((env) => {
       divide: divideReport,
       sink: brokersApp === undefined ? undefined : brokerSink(brokersApp),
     },
-    alsoJudged: exchangeProblems,
+    alsoJudged: undefined,
     challenge: challengeOf(env),
     limiter: limiter === undefined ? undefined : async (key) => (await limiter.limit({ key })).success,
     outbound: fetch,

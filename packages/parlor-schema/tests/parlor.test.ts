@@ -3,7 +3,7 @@ import { columnLabel, readAttributes, type Column } from "open-location-survey-k
 
 import type { Submission, SurveyRecord } from "open-location-survey-kit"
 
-import { exchangeProblems, divideReport, observationLines } from "../src/broker"
+import { divideReport, observationLines } from "../src/broker"
 import { brokerOrder, parlorSchema } from "../src/parlor"
 
 const PARLOR = { name: "マルハン梅田店", reading: "マルハンウメダテン", prefecture: "大阪府", address: "大阪府大阪市北区小松原町4-16", keywords: ["梅田マルハン"] }
@@ -164,8 +164,8 @@ describe("what was seen at a broker, as lines of the observations", () => {
   test("is a line a prize paid for, under the report's id and the observer's pseudonym, its corner as the lists write one, and no broker where none is named", () => {
     const there = divideReport(amending({ prizes: PRIZES })).there as Submission
     expect(observationLines(record(there)).map((line) => JSON.parse(line) as unknown)).toEqual([
-      { parlor: "osm:way/1", observedOn: "2026-10-11", game: "pachinko", tier: "4円", prize: "小景品", tokens: 280, yen: 1000, submission: "0192f0a0-0000-7000-8000-000000000001", observer: SEEN.contributor },
-      { parlor: "osm:way/1", observedOn: "2026-10-11", game: "pachislot", tier: "20円", prize: "小景品", yen: 500, submission: "0192f0a0-0000-7000-8000-000000000001", observer: SEEN.contributor },
+      { parlor: "osm:way/1", observedOn: "2026-10-11", source: "on-site", game: "pachinko", tier: "4円", prize: "小景品", tokens: 280, yen: 1000, submission: "0192f0a0-0000-7000-8000-000000000001", observer: SEEN.contributor },
+      { parlor: "osm:way/1", observedOn: "2026-10-11", source: "on-site", game: "pachislot", tier: "20円", prize: "小景品", yen: 500, submission: "0192f0a0-0000-7000-8000-000000000001", observer: SEEN.contributor },
     ])
   })
   test("keeps the broker's name where the report gives one", () => {
@@ -176,7 +176,7 @@ describe("what was seen at a broker, as lines of the observations", () => {
   test("is one line of the name alone where the report names the broker and says no sum", () => {
     const there = divideReport(amending({ broker: "大阪景品センター" })).there as Submission
     expect(observationLines(record(there)).map((line) => JSON.parse(line) as unknown)).toEqual([
-      { parlor: "osm:way/1", observedOn: "2026-10-11", broker: "大阪景品センター", submission: "0192f0a0-0000-7000-8000-000000000001", observer: SEEN.contributor },
+      { parlor: "osm:way/1", observedOn: "2026-10-11", source: "on-site", broker: "大阪景品センター", submission: "0192f0a0-0000-7000-8000-000000000001", observer: SEEN.contributor },
     ])
   })
 
@@ -187,20 +187,10 @@ describe("what was seen at a broker, as lines of the observations", () => {
 })
 
 describe("a report that says what a prize takes or came to", () => {
-  test("was seen on site, on a day already come; a parlor's own rates may be of a day ahead or from its site", () => {
-    const paid = amending({ prizes: [PRIZES[0]] })
-    expect(exchangeProblems(paid, "2026-10-11")).toEqual([])
-    expect(exchangeProblems({ ...paid, provenance: { ...SEEN, observedOn: "2026-10-12" } }, "2026-10-11")).toEqual([])
-    expect(exchangeProblems({ ...paid, provenance: { ...SEEN, observedOn: "2026-11-01", source: { kind: "publication", url: "https://example.jp/" } } }, "2026-10-11")).toEqual([
-      { field: "source", reason: "not-seen" },
-      { field: "observedOn", reason: "seen-ahead" },
-    ])
-    expect(exchangeProblems({ ...amending({ prizes: [PRIZES[1]] }), provenance: { ...SEEN, observedOn: "2026-11-01" } }, "2026-10-11")).toEqual([{ field: "observedOn", reason: "seen-ahead" }])
-    expect(exchangeProblems({ ...amending({ prizes: [PRIZES[1]] }), provenance: { ...SEEN, source: { kind: "publication", url: "https://example.jp/" } } }, "2026-10-11")).toEqual([{ field: "source", reason: "not-seen" }])
-    expect(exchangeProblems({ ...amending({ tiers: [{ corner: "4円パチンコ", rental: 250 }] }), provenance: { ...SEEN, observedOn: "2026-11-01", source: { kind: "publication", url: "https://example.jp/" } } }, "2026-10-11")).toEqual([])
-  })
-  test("holds a broker's name alone to the same: seen on site, on a day already come", () => {
-    expect(exchangeProblems({ ...amending({ broker: "大阪景品センター" }), provenance: { ...SEEN, source: { kind: "publication", url: "https://example.jp/" } } }, "2026-10-11")).toEqual([{ field: "source", reason: "not-seen" }])
+  test("is set down however it was known and of whatever day, saying how it was known", () => {
+    const there = divideReport({ ...amending({ prizes: [PRIZES[0]], broker: "大阪景品センター" }), provenance: { ...SEEN, observedOn: "2026-11-01", source: { kind: "publication", url: "https://example.jp/" } } }).there as Submission
+    const line = JSON.parse(observationLines({ id: "0192f0a0-0000-7000-8000-000000000001", survey: "parlor", takenAt: "2026-10-11T09:00:00.000Z", license: "CC0-1.0", ...there })[0] ?? "{}") as { readonly source: string; readonly observedOn: string }
+    expect([line.source, line.observedOn]).toEqual(["publication", "2026-11-01"])
   })
   test("leaves out a broker's name of spaces or marks alone, neither refusing it nor keeping it", () => {
     const refined = parlorSchema.refine?.({ prizes: [PRIZES[0]], broker: "、 " } as never, "amend")

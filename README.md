@@ -14,9 +14,9 @@ parlor takes for it and what the broker (特殊景品交換所, the booth that b
 special prizes) paid the reporter for it — written in from the prize's name,
 100 for 極小, 500 for 小, 1000 for 中 and 5000 for 大, and typed over where the
 broker paid otherwise — and the broker's name where it has
-one, with a sum or without. A prize and a broker's name are things seen in
-an exchange, so a report that gives either must be learned on site and of a
-day already come. It is one report, published apart: the corners, and what each prize
+one, with a sum or without. No report is refused for how it was known or for
+its day: what is set down says both, with the moment it was taken, for
+whoever reads it to choose what to trust. It is one report, published apart: the corners, and what each prize
 takes, in the parlor list's `tiers.jsonl`; and what the prizes came to at the
 broker, and its name, which is not the parlor's, in a
 repository of its own,

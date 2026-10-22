@@ -1,4 +1,4 @@
-import type { Attributes, AttributeValue, Problem, Row, Submission, SurveyRecord, SurveySchema } from "open-location-survey-kit"
+import type { Attributes, AttributeValue, Row, Submission, SurveyRecord, SurveySchema } from "open-location-survey-kit"
 
 import { cornerCalled } from "./corners"
 import { BROKER, PRIZES } from "./parlor"
@@ -60,6 +60,7 @@ const lineOf = (record: SurveyRecord, parlor: string, broker: string | undefined
   JSON.stringify({
     parlor,
     observedOn: record.provenance.observedOn,
+    source: record.provenance.source.kind,
     broker,
     game: cornerCalled(row["corner"])?.game,
     tier: cornerCalled(row["corner"])?.tier,
@@ -70,16 +71,19 @@ const lineOf = (record: SurveyRecord, parlor: string, broker: string | undefined
     observer: record.provenance.contributor,
   })
 
-/** The broker's name alone, as a line of p-lens-brokers' observations: where and on which day it was seen, and nothing of what was paid. */
+/** The broker's name alone, as a line of p-lens-brokers' observations: where, on which day and how it was known, and nothing of what was paid. */
 const nameLineOf = (record: SurveyRecord, parlor: string, broker: string): string =>
-  JSON.stringify({ parlor, observedOn: record.provenance.observedOn, broker, submission: record.id, observer: record.provenance.contributor })
+  JSON.stringify({ parlor, observedOn: record.provenance.observedOn, source: record.provenance.source.kind, broker, submission: record.id, observer: record.provenance.contributor })
 
 /**
  * The broker's part of a report as lines of p-lens-brokers'
  * `observations.jsonl`, a line a prize that was paid for: where, on which
- * day, at which corner, what the parlor took for the prize and what the
- * broker — by its name, where the report gives one — paid, under the
- * report's id and the observer's pseudonym. A part that names the broker
+ * day and how it was known, at which corner, what the parlor took for the
+ * prize and what the broker — by its name, where the report gives one —
+ * paid, under the report's id and the observer's pseudonym. No report is
+ * refused for how it was known or for its day: the line says both, and
+ * the moment it was taken stands in its id, for whoever reads the lines to
+ * choose which to trust. A part that names the broker
  * and says no sum is one line of the name alone. None for a part about a
  * parlor the list does not have yet.
  */
@@ -91,33 +95,4 @@ export const observationLines = (record: SurveyRecord): readonly string[] => {
   const paid = (isRows(prizes) ? prizes : []).filter((row) => cornerCalled(row["corner"]) !== undefined)
   if (paid.length === 0) return broker === undefined ? [] : [nameLineOf(record, observation.subject.id, broker)]
   return paid.map((row) => lineOf(record, observation.subject.id, broker, row))
-}
-
-/** How far past the server's today a day seen may be: the day where the observer stands may be a day ahead of UTC. */
-const DAYS_AHEAD_OF_UTC = 1
-
-/** Whether a report says what only a player who exchanged prizes knows: a prize, by what it takes or what it came to, or the broker's name. */
-const ofExchange = (submission: Submission): boolean => {
-  const observation = submission.observation
-  if (observation.kind !== "add" && observation.kind !== "amend") return false
-  const prizes = observation.attributes["prizes"]
-  return observation.attributes["broker"] !== undefined || (isRows(prizes) && prizes.length > 0)
-}
-
-/**
- * What is wrong with a report that says what a prize takes or came to, or
- * what the broker is called, beyond its fields: it is a thing seen in an
- * exchange, so it was learned on site and on a day already come. A sum is
- * written in from the prize's name, so what a reporter vouches for is the
- * count they exchanged. A parlor's own rates may be reported from its site,
- * or of a day ahead when a change is posted; a prize, or a broker's name,
- * may not.
- */
-export const exchangeProblems = (submission: Submission, today: string): readonly Problem[] => {
-  if (!ofExchange(submission)) return []
-  const ahead = (Date.parse(submission.provenance.observedOn) - Date.parse(today)) / 86_400_000
-  return [
-    ...(submission.provenance.source.kind === "on-site" ? [] : [{ field: "source", reason: "not-seen" }]),
-    ...(ahead > DAYS_AHEAD_OF_UTC ? [{ field: "observedOn", reason: "seen-ahead" }] : []),
-  ]
 }
