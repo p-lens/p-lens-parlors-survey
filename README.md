@@ -11,8 +11,12 @@ their rates — each corner chosen from the corners there are, 4円パチンコ 
 20円スロット, with what it rents at written in as it is chosen, what it
 replays at and the most it replays in a day — and its special prizes, each kind with the balls or medals the
 parlor takes for it and what the broker (特殊景品交換所, the booth that buys
-special prizes) paid the reporter for it, and the broker's name where it has
-one, with a sum or without. It is one report, published apart: the corners, and what each prize
+special prizes) paid the reporter for it — written in from the prize's name,
+100 for 極小, 500 for 小, 1000 for 中 and 5000 for 大, and typed over where the
+broker paid otherwise — and the broker's name where it has
+one, with a sum or without. A prize and a broker's name are things seen in
+an exchange, so a report that gives either must be learned on site and of a
+day already come. It is one report, published apart: the corners, and what each prize
 takes, in the parlor list's `tiers.jsonl`; and what the prizes came to at the
 broker, and its name, which is not the parlor's, in a
 repository of its own,

@@ -3,7 +3,7 @@ import { columnLabel, readAttributes, type Column } from "open-location-survey-k
 
 import type { Submission, SurveyRecord } from "open-location-survey-kit"
 
-import { brokerProblems, divideReport, observationLines } from "../src/broker"
+import { exchangeProblems, divideReport, observationLines } from "../src/broker"
 import { brokerOrder, parlorSchema } from "../src/parlor"
 
 const PARLOR = { name: "マルハン梅田店", reading: "マルハンウメダテン", prefecture: "大阪府", address: "大阪府大阪市北区小松原町4-16", keywords: ["梅田マルハン"] }
@@ -186,19 +186,21 @@ describe("what was seen at a broker, as lines of the observations", () => {
   })
 })
 
-describe("a report that says what a broker paid", () => {
+describe("a report that says what a prize takes or came to", () => {
   test("was seen on site, on a day already come; a parlor's own rates may be of a day ahead or from its site", () => {
     const paid = amending({ prizes: [PRIZES[0]] })
-    expect(brokerProblems(paid, "2026-10-11")).toEqual([])
-    expect(brokerProblems({ ...paid, provenance: { ...SEEN, observedOn: "2026-10-12" } }, "2026-10-11")).toEqual([])
-    expect(brokerProblems({ ...paid, provenance: { ...SEEN, observedOn: "2026-11-01", source: { kind: "publication", url: "https://example.jp/" } } }, "2026-10-11")).toEqual([
+    expect(exchangeProblems(paid, "2026-10-11")).toEqual([])
+    expect(exchangeProblems({ ...paid, provenance: { ...SEEN, observedOn: "2026-10-12" } }, "2026-10-11")).toEqual([])
+    expect(exchangeProblems({ ...paid, provenance: { ...SEEN, observedOn: "2026-11-01", source: { kind: "publication", url: "https://example.jp/" } } }, "2026-10-11")).toEqual([
       { field: "source", reason: "not-seen" },
       { field: "observedOn", reason: "seen-ahead" },
     ])
-    expect(brokerProblems({ ...amending({ prizes: [PRIZES[1]] }), provenance: { ...SEEN, observedOn: "2026-11-01" } }, "2026-10-11")).toEqual([])
+    expect(exchangeProblems({ ...amending({ prizes: [PRIZES[1]] }), provenance: { ...SEEN, observedOn: "2026-11-01" } }, "2026-10-11")).toEqual([{ field: "observedOn", reason: "seen-ahead" }])
+    expect(exchangeProblems({ ...amending({ prizes: [PRIZES[1]] }), provenance: { ...SEEN, source: { kind: "publication", url: "https://example.jp/" } } }, "2026-10-11")).toEqual([{ field: "source", reason: "not-seen" }])
+    expect(exchangeProblems({ ...amending({ tiers: [{ corner: "4円パチンコ", rental: 250 }] }), provenance: { ...SEEN, observedOn: "2026-11-01", source: { kind: "publication", url: "https://example.jp/" } } }, "2026-10-11")).toEqual([])
   })
   test("holds a broker's name alone to the same: seen on site, on a day already come", () => {
-    expect(brokerProblems({ ...amending({ broker: "大阪景品センター" }), provenance: { ...SEEN, source: { kind: "publication", url: "https://example.jp/" } } }, "2026-10-11")).toEqual([{ field: "source", reason: "not-seen" }])
+    expect(exchangeProblems({ ...amending({ broker: "大阪景品センター" }), provenance: { ...SEEN, source: { kind: "publication", url: "https://example.jp/" } } }, "2026-10-11")).toEqual([{ field: "source", reason: "not-seen" }])
   })
   test("leaves out a broker's name of spaces or marks alone, neither refusing it nor keeping it", () => {
     const refined = parlorSchema.refine?.({ prizes: [PRIZES[0]], broker: "、 " } as never, "amend")

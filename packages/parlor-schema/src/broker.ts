@@ -96,23 +96,25 @@ export const observationLines = (record: SurveyRecord): readonly string[] => {
 /** How far past the server's today a day seen may be: the day where the observer stands may be a day ahead of UTC. */
 const DAYS_AHEAD_OF_UTC = 1
 
-/** Whether a report says anything of the broker: a sum it paid, or its name. */
-const ofBroker = (submission: Submission): boolean => {
+/** Whether a report says what only a player who exchanged prizes knows: a prize, by what it takes or what it came to, or the broker's name. */
+const ofExchange = (submission: Submission): boolean => {
   const observation = submission.observation
   if (observation.kind !== "add" && observation.kind !== "amend") return false
   const prizes = observation.attributes["prizes"]
-  return observation.attributes["broker"] !== undefined || (isRows(prizes) && prizes.some((row) => row["yen"] !== undefined))
+  return observation.attributes["broker"] !== undefined || (isRows(prizes) && prizes.length > 0)
 }
 
 /**
- * What is wrong with a report that says what a broker paid or what it is
- * called, beyond its fields: it is a thing seen, so it was learned on site
- * and on a day already come. A parlor's own rates may be reported from its
- * site, or of a day ahead when a change is posted; a sum received, or a
- * broker's name, may not.
+ * What is wrong with a report that says what a prize takes or came to, or
+ * what the broker is called, beyond its fields: it is a thing seen in an
+ * exchange, so it was learned on site and on a day already come. A sum is
+ * written in from the prize's name, so what a reporter vouches for is the
+ * count they exchanged. A parlor's own rates may be reported from its site,
+ * or of a day ahead when a change is posted; a prize, or a broker's name,
+ * may not.
  */
-export const brokerProblems = (submission: Submission, today: string): readonly Problem[] => {
-  if (!ofBroker(submission)) return []
+export const exchangeProblems = (submission: Submission, today: string): readonly Problem[] => {
+  if (!ofExchange(submission)) return []
   const ahead = (Date.parse(submission.provenance.observedOn) - Date.parse(today)) / 86_400_000
   return [
     ...(submission.provenance.source.kind === "on-site" ? [] : [{ field: "source", reason: "not-seen" }]),
