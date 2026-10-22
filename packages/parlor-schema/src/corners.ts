@@ -10,13 +10,19 @@ export interface Corner {
   readonly game: "pachinko" | "pachislot"
   /** The rate as the published lists write it: `4円`, `0.5円`. */
   readonly tier: string
-  /** What ¥1,000 usually rents there, in balls or medals: the rate turned over, or what a rate that does not divide ¥1,000 is rented at. A corner that rents otherwise says so in its own report. */
+  /** What ¥1,000 usually rents there, in balls or medals (`RENTED_FOR`). A corner that rents otherwise says so in its own report. */
   readonly rental: number
 }
 
-const SUMMED_FOR = 1000
+/**
+ * What a corner's rate is turned over against for what ¥1,000 usually
+ * rents there: ¥1,000 at pachinko, and at pachislot the 46 medals 20円
+ * rents for ¥1,000 — the rate turned over less 8% — as most parlors rent
+ * medals. A rate this does not divide names its rental itself.
+ */
+const RENTED_FOR: Readonly<Record<Corner["game"], number>> = { pachinko: 1000, pachislot: 920 }
 
-const cornerOf = (game: Corner["game"], rate: number, rental = SUMMED_FOR / rate): Corner => ({
+const cornerOf = (game: Corner["game"], rate: number, rental = RENTED_FOR[game] / rate): Corner => ({
   label: `${String(rate)}円${game === "pachinko" ? "パチンコ" : "スロット"}`,
   game,
   tier: `${String(rate)}円`,
@@ -26,7 +32,7 @@ const cornerOf = (game: Corner["game"], rate: number, rental = SUMMED_FOR / rate
 /** The corners a report may choose, by how many parlors have them: the four most have, those some have, and those few have. */
 export const CORNER_GROUPS: readonly (readonly Corner[])[] = [
   [cornerOf("pachinko", 4), cornerOf("pachinko", 1), cornerOf("pachislot", 20), cornerOf("pachislot", 5)],
-  [cornerOf("pachinko", 2), cornerOf("pachinko", 0.5), cornerOf("pachislot", 10), cornerOf("pachislot", 8), cornerOf("pachislot", 6, 168), cornerOf("pachislot", 2), cornerOf("pachislot", 1)],
+  [cornerOf("pachinko", 2), cornerOf("pachinko", 0.5), cornerOf("pachislot", 10), cornerOf("pachislot", 8), cornerOf("pachislot", 6, 153), cornerOf("pachislot", 2), cornerOf("pachislot", 1)],
   [cornerOf("pachinko", 0.25), cornerOf("pachinko", 0.2), cornerOf("pachislot", 0.5)],
 ]
 

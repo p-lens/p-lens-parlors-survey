@@ -78,7 +78,7 @@ describe("parlorSchema", () => {
   })
   test("writes what ¥1,000 usually rents as a corner is chosen, and calls the count by the corner's game", () => {
     const [corner, rental] = (parlorSchema.fields.find((field) => field.key === "tiers")?.kind as { readonly columns: readonly Column[] }).columns
-    expect([corner?.fills?.["4円パチンコ"], corner?.fills?.["1円パチンコ"], corner?.fills?.["20円スロット"], corner?.fills?.["5円スロット"], corner?.fills?.["8円スロット"], corner?.fills?.["6円スロット"], corner?.fills?.["0.2円パチンコ"]]).toEqual([{ rental: "250" }, { rental: "1000" }, { rental: "50" }, { rental: "200" }, { rental: "125" }, { rental: "168" }, { rental: "5000" }])
+    expect([corner?.fills?.["4円パチンコ"], corner?.fills?.["1円パチンコ"], corner?.fills?.["20円スロット"], corner?.fills?.["5円スロット"], corner?.fills?.["8円スロット"], corner?.fills?.["6円スロット"], corner?.fills?.["0.5円スロット"], corner?.fills?.["0.2円パチンコ"]]).toEqual([{ rental: "250" }, { rental: "1000" }, { rental: "46" }, { rental: "184" }, { rental: "115" }, { rental: "153" }, { rental: "1840" }, { rental: "5000" }])
     expect(rental === undefined ? [] : [columnLabel(rental, {}), columnLabel(rental, { corner: "4円パチンコ" }), columnLabel(rental, { corner: "20円スロット" })]).toEqual(["貸し数", "貸玉数", "貸メダル数"])
   })
 

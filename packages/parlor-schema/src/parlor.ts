@@ -208,10 +208,10 @@ const CORNER_OPTIONS = CORNERS.map((corner) => corner.label)
 /**
  * A parlor's corners as a report states them, a corner a row: chosen from
  * the corners there are, with what ¥1,000 rents — written in as the corner
- * is chosen, since it is nearly always the rate turned over, and typed over
- * where the parlor rents otherwise. Few corners take a fee on a replay, so
- * its two counts are put away until asked for, and so is the most a member
- * may replay in a day, which a reporter seldom knows.
+ * is chosen, since most parlors rent as the corner usually does, and typed
+ * over where the parlor rents otherwise. Few corners take a fee on a replay,
+ * so its two counts are put away until asked for, and so is the most a
+ * member may replay in a day, which a reporter seldom knows.
  */
 const TIERS: Field = {
   key: "tiers",
