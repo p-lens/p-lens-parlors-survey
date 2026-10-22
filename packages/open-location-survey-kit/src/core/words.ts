@@ -61,8 +61,6 @@ export interface Words {
     readonly placeOnMap: string
     readonly placeAgain: string
     readonly howKnown: string
-    readonly publicationPlaceholder: string
-    readonly otherPlaceholder: string
     readonly send: string
     readonly sending: string
     readonly checkInput: string
@@ -92,8 +90,8 @@ export interface Words {
 export const japanese: Words = {
   observations: { add: "載っていないものを登録", locate: "座標を知らせる", gone: "なくなったことを知らせる", amend: "内容を直す" },
   observationTags: { add: "新規", locate: "座標", gone: "消滅", amend: "修正" },
-  sources: { onSite: "現地で確認した", publication: "運営者の公式サイトで確認した", other: "その他" },
-  sourceHint: "Google マップなどの地図サービスや、ほかのサイト・データベースは出典にできません。",
+  sources: { onSite: "現地で確認した", publication: "運営者の公式サイトで確認した", other: "その他の方法で知った" },
+  sourceHint: "Google マップなどの地図サービスや、公式を除くほかのサイト・データベースは出典にできません。",
   position: "座標",
   gps: "端末の GPS",
   pin: "地図でピン",
@@ -126,7 +124,6 @@ export const japanese: Words = {
     "position:basemap": "座標は表示されている地図の上で決めてください",
     "attributes:required": "直したい内容を入力してください",
     "observedOn:invalid": "確認した日は今日から1年以内の日付にしてください",
-    "source:invalid": "出典の内容を確かめてください（公式サイトは http から始まるアドレス）",
   },
   parts: {
     kind: "種類",
@@ -173,8 +170,6 @@ export const japanese: Words = {
     placeOnMap: "地図で座標を決める",
     placeAgain: "やり直す",
     howKnown: "どうやって知りましたか",
-    publicationPlaceholder: "https://（運営者の公式ページ）",
-    otherPlaceholder: "例：自分で前を通って確かめた",
     send: "送信する",
     sending: "送信中…",
     checkInput: "入力を確かめてください",

@@ -37,8 +37,8 @@ export type Observation =
  */
 export type Source =
   | { readonly kind: "on-site" }
-  | { readonly kind: "publication"; readonly url: string }
-  | { readonly kind: "other"; readonly note: string }
+  | { readonly kind: "publication" }
+  | { readonly kind: "other" }
 
 /** Where a report comes from: how it was learned, when, and by whom as a pseudonym. */
 export interface Provenance {
@@ -71,7 +71,6 @@ export interface Judging {
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const DAY = /^\d{4}-\d{2}-\d{2}$/
-const LONGEST_NOTE = 500
 const LONGEST_REF = 300
 const OLDEST_OBSERVATION_DAYS = 366
 
@@ -111,26 +110,15 @@ const subjectOf = (value: unknown): Result<SubjectRef, Problem> => {
   return id !== "" && name !== "" && id.length <= LONGEST_REF && [...name].length <= LONGEST_REF && isOneLine(id) && isOneLine(name) ? Ok({ id, name }) : Err({ field: "subject", reason: "required" })
 }
 
-/** A web address as a URL writes it, which leaves no space, line break or mark of its own in it; nothing for what is not one. */
-const webAddressOf = (text: string): string | undefined => {
-  if (!URL.canParse(text) || text.length > LONGEST_REF) return undefined
-  const url = new URL(text)
-  return ["https:", "http:"].includes(url.protocol) ? url.href : undefined
-}
-
 const sourceOf = (value: unknown): Result<Source, Problem> => {
   if (!isJson(value)) return Err({ field: "source", reason: "required" })
   switch (value["kind"]) {
     case "on-site":
       return Ok({ kind: "on-site" })
-    case "publication": {
-      const url = webAddressOf(textOf(value["url"]))
-      return url === undefined ? Err({ field: "source", reason: "invalid" }) : Ok({ kind: "publication", url })
-    }
-    case "other": {
-      const note = textOf(value["note"])
-      return note !== "" && [...note].length <= LONGEST_NOTE && isOneLine(note) ? Ok({ kind: "other", note }) : Err({ field: "source", reason: "invalid" })
-    }
+    case "publication":
+      return Ok({ kind: "publication" })
+    case "other":
+      return Ok({ kind: "other" })
     default:
       return Err({ field: "source", reason: "required" })
   }

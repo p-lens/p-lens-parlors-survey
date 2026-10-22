@@ -254,7 +254,7 @@ Every report becomes a public issue, so the server:
   does not have, or a name other than the list's, is refused.
 - **writes what was sent where it can only be shown.** In an issue every value
   sent is written as code: it is no mention (`@name`), no link and no HTML. A
-  name or a note with a line break or a control character is refused.
+  name with a line break or a control character is refused.
 - **reads only a body sent as JSON, of 16KB at most.**
 
 The page loads nothing from anywhere but its own files, Turnstile, the map's

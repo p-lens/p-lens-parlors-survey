@@ -8,13 +8,6 @@ export type RowDraft = Readonly<Record<string, string>>
 /** A field's value as the form holds it: what was typed, a box ticked, or a table's rows. */
 export type DraftValue = string | boolean | readonly RowDraft[]
 
-/** How the person says they know, as the form holds it before it is sent. */
-export interface SourceDraft {
-  readonly kind: Source["kind"]
-  readonly url: string
-  readonly note: string
-}
-
 /** A report while it is being written. */
 export interface Draft {
   readonly kind: ObservationKind
@@ -22,7 +15,7 @@ export interface Draft {
   readonly subject: ListedSubject | undefined
   readonly values: Readonly<Record<string, DraftValue>>
   readonly position: Position | undefined
-  readonly source: SourceDraft
+  readonly source: Source
   readonly observedOn: string
   readonly cc0: boolean
   readonly notCopied: boolean
@@ -95,7 +88,7 @@ export const draftFor = (schema: SurveySchema, kind: ObservationKind, subject: L
     schema.fields.map((field) => [field.key, (kind === "amend" ? asDraftValue(subject?.attributes[field.key]) : undefined) ?? emptyValue(field)] as const),
   ),
   position: undefined,
-  source: { kind: "on-site", url: "", note: "" },
+  source: { kind: "on-site" },
   observedOn: today,
   cc0: false,
   notCopied: false,
@@ -156,20 +149,9 @@ const observationOf = (schema: SurveySchema, draft: Draft): unknown => {
   }
 }
 
-const sourceOf = (source: SourceDraft): Source => {
-  switch (source.kind) {
-    case "on-site":
-      return { kind: "on-site" }
-    case "publication":
-      return { kind: "publication", url: source.url.trim() }
-    case "other":
-      return { kind: "other", note: source.note.trim() }
-  }
-}
-
 /** The body the server is sent. It is not judged here: the server judges every report and the page shows its answer. */
 export const envelopeOf = (schema: SurveySchema, draft: Draft, contributor: string, turnstile: string | undefined): unknown => ({
-  submission: { observation: observationOf(schema, draft), provenance: { source: sourceOf(draft.source), observedOn: draft.observedOn, contributor } },
+  submission: { observation: observationOf(schema, draft), provenance: { source: draft.source, observedOn: draft.observedOn, contributor } },
   consent: { cc0: draft.cc0, notCopied: draft.notCopied },
   turnstile,
 })

@@ -15,8 +15,8 @@ const added: SurveyRecord = recordOf("0192f0a0-0000-7000-8000-000000000001", "ae
 })
 
 const gone: SurveyRecord = recordOf("0192f0a0-0000-7000-8000-000000000002", "aed", "2026-10-05T09:00:00.000Z", {
-  observation: { kind: "gone", subject: { id: "node/1", name: "旧庁舎" } },
-  provenance: { ...provenance, source: { kind: "other", note: "撤去の|貼り紙\nあり" } },
+  observation: { kind: "gone", subject: { id: "node/1", name: "旧|庁舎\n跡" } },
+  provenance: { ...provenance, source: { kind: "other" } },
 })
 
 describe("recordOf", () => {
@@ -74,14 +74,14 @@ describe("issueOf", () => {
   })
 
   test("keeps what was typed from breaking the table", () => {
-    expect(issueOf(gone, aedSchema, japanese).body).toContain("| 出典 | ` その他：撤去の｜貼り紙 あり ` |")
+    expect(issueOf(gone, aedSchema, japanese).body).toContain("| 対象 | ` 旧｜庁舎 跡（node/1） ` |")
   })
 
   test("writes what was sent where it can only be shown: no mention, link or markup of its own, and no way out of a block", () => {
     const hostile = "x ``` </details> @someone <img src=x> [here](https://elsewhere.example) #1"
     const record = recordOf("0192f0a0-0000-7000-8000-000000000003", "aed", "2026-10-05T09:00:00.000Z", {
       observation: { kind: "gone", subject: { id: "node/1", name: hostile } },
-      provenance: { ...provenance, source: { kind: "other", note: hostile } },
+      provenance: { ...provenance, source: { kind: "other" } },
     })
     const issue = issueOf(record, aedSchema, japanese)
     const lines = issue.body.split("\n")

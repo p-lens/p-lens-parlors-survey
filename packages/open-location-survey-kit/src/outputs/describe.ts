@@ -31,9 +31,9 @@ export const sourceText = (source: Source, words: Words): string => {
     case "on-site":
       return words.sources.onSite
     case "publication":
-      return `${words.sources.publication} ${source.url}`
+      return words.sources.publication
     case "other":
-      return `${words.sources.other}：${source.note}`
+      return words.sources.other
   }
 }
 

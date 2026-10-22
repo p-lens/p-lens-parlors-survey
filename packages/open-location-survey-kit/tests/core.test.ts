@@ -87,11 +87,10 @@ describe("readEnvelope", () => {
     expect(read).toEqual({ ok: false, error: [{ field: "kind", reason: "not-allowed" }] })
   })
 
-  test("takes the operator's own publication only as a web address", () => {
-    expect(readEnvelope(envelope(ADD, { source: { kind: "publication", url: "https://example.org/aed" } }), JUDGING).ok).toBe(true)
-    expect(readEnvelope(envelope(ADD, { source: { kind: "publication", url: "javascript:alert(1)" } }), JUDGING).ok).toBe(false)
-    const written = readEnvelope(envelope(ADD, { source: { kind: "publication", url: "https://example.org/a b?q=x y<z>" } }), JUDGING)
-    expect(written.ok && written.value.submission.provenance.source).toEqual({ kind: "publication", url: "https://example.org/a%20b?q=x%20y%3Cz%3E" })
+  test("takes how it was known by its kind alone, keeping nothing else that was sent with it", () => {
+    const written = readEnvelope(envelope(ADD, { source: { kind: "publication", url: "javascript:alert(1)" } }), JUDGING)
+    expect(written.ok && written.value.submission.provenance.source).toEqual({ kind: "publication" })
+    expect(readEnvelope(envelope(ADD, { source: { kind: "rumour" } }), JUDGING).ok).toBe(false)
   })
 
   test("takes an observation from the last year, not the future", () => {
@@ -126,8 +125,7 @@ describe("what a report names", () => {
     expect(about({ id: "node/1", name: "旧庁舎" }).ok).toBe(true)
     expect(about({ id: "node/1", name: "旧庁舎\n@someone" }).ok).toBe(false)
     expect(about({ id: "node/1\u0000", name: "旧庁舎" }).ok).toBe(false)
-    expect(about({ id: "node/1", name: "旧庁舎" }, { source: { kind: "other", note: "貼り紙\u2028あり" } }).ok).toBe(false)
-    expect(about({ id: "node/1", name: "旧庁舎" }, { source: { kind: "other", note: "貼り紙あり" } }).ok).toBe(true)
+    expect(about({ id: "node/1", name: "旧庁舎\u2028跡" }).ok).toBe(false)
   })
 })
 

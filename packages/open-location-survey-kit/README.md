@@ -25,7 +25,7 @@ and how.
 ## What it holds to
 
 - **First-hand only.** A source is required: seen on site, the thing's own
-  operator's publication, or a note. Map services and other databases are
+  operator's publication, or some other way. Map services and other databases are
   never a source.
 - **Free basemaps only.** A position comes from the device's GPS or a pin on a
   basemap whose terms allow it (地理院タイル are built in); the record names
@@ -107,7 +107,7 @@ shows it comes from a person: a Cloudflare Turnstile token, or
 `{ type: "none" }` for a survey not open to the world. A report about a listed
 thing must name one the list has, by the name the list gives it. And in the
 issue every value a person sent is written as code, where it is no mention, no
-link and no markup; a name or a note with a line break in it is refused.
+link and no markup; a name with a line break in it is refused.
 
 ## Page
 

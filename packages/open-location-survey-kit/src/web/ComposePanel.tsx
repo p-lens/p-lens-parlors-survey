@@ -1,5 +1,6 @@
 import { createEffect, createSignal, For, Index, Match, on, Show, Switch, type JSX } from "solid-js"
 
+import type { Source } from "../core/observation"
 import { problemText } from "../core/problem-text"
 import { columnLabel, type Column, type Problem, type Field } from "../core/schema"
 import type { SurveyConfig } from "./config"
@@ -7,7 +8,7 @@ import { Button, Check, CloseButton, FieldBox, FieldGroup, inputClass, TextInput
 import { OfferedInput } from "./OfferedInput"
 import type { Offers } from "./offered"
 import { createDebounced } from "./debounce"
-import { dayAfter, emptyValue, newRow, rowAfter, rowSettled, type Draft, type DraftValue, type RowDraft, type SourceDraft } from "./draft"
+import { dayAfter, emptyValue, newRow, rowAfter, rowSettled, type Draft, type DraftValue, type RowDraft } from "./draft"
 import { Turnstile } from "./Turnstile"
 
 /** Where a report being written stands: being edited, on its way, or refused with what to fix. */
@@ -250,12 +251,12 @@ const PositionRow = (props: { readonly config: SurveyConfig; readonly draft: Dra
   )
 }
 
-const SourceFields = (props: { readonly config: SurveyConfig; readonly source: SourceDraft; readonly onChange: (source: SourceDraft) => void }): JSX.Element => {
+const SourceFields = (props: { readonly config: SurveyConfig; readonly source: Source; readonly onChange: (source: Source) => void }): JSX.Element => {
   const words = props.config.words
-  const options: readonly { readonly kind: SourceDraft["kind"]; readonly label: string }[] = [
-    { kind: "on-site", label: words.sources.onSite },
-    { kind: "publication", label: words.sources.publication },
-    { kind: "other", label: words.sources.other },
+  const options: readonly { readonly source: Source; readonly label: string }[] = [
+    { source: { kind: "on-site" }, label: words.sources.onSite },
+    { source: { kind: "publication" }, label: words.sources.publication },
+    { source: { kind: "other" }, label: words.sources.other },
   ]
   return (
     <fieldset class="flex flex-col gap-2">
@@ -263,17 +264,11 @@ const SourceFields = (props: { readonly config: SurveyConfig; readonly source: S
       <For each={options}>
         {(option) => (
           <label class="flex items-center gap-2 text-sm text-text-primary">
-            <input type="radio" name="source" class="accent-accent" checked={props.source.kind === option.kind} onChange={() => props.onChange({ ...props.source, kind: option.kind })} />
+            <input type="radio" name="source" class="accent-accent" checked={props.source.kind === option.source.kind} onChange={() => props.onChange(option.source)} />
             {option.label}
           </label>
         )}
       </For>
-      <Show when={props.source.kind === "publication"}>
-        <TextInput type="url" placeholder={words.ui.publicationPlaceholder} value={props.source.url} onInput={(event) => props.onChange({ ...props.source, url: event.currentTarget.value })} />
-      </Show>
-      <Show when={props.source.kind === "other"}>
-        <TextInput placeholder={words.ui.otherPlaceholder} value={props.source.note} onInput={(event) => props.onChange({ ...props.source, note: event.currentTarget.value })} />
-      </Show>
       <p class="text-xs text-text-muted">{words.sourceHint}</p>
     </fieldset>
   )

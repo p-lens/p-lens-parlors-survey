@@ -188,7 +188,7 @@ describe("what was seen at a broker, as lines of the observations", () => {
 
 describe("a report that says what a prize takes or came to", () => {
   test("is set down however it was known and of whatever day, saying how it was known", () => {
-    const there = divideReport({ ...amending({ prizes: [PRIZES[0]], broker: "大阪景品センター" }), provenance: { ...SEEN, observedOn: "2026-11-01", source: { kind: "publication", url: "https://example.jp/" } } }).there as Submission
+    const there = divideReport({ ...amending({ prizes: [PRIZES[0]], broker: "大阪景品センター" }), provenance: { ...SEEN, observedOn: "2026-11-01", source: { kind: "publication" } } }).there as Submission
     const line = JSON.parse(observationLines({ id: "0192f0a0-0000-7000-8000-000000000001", survey: "parlor", takenAt: "2026-10-11T09:00:00.000Z", license: "CC0-1.0", ...there })[0] ?? "{}") as { readonly source: string; readonly observedOn: string }
     expect([line.source, line.observedOn]).toEqual(["publication", "2026-11-01"])
   })
