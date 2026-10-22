@@ -3,7 +3,7 @@ import { describe, expect, test } from "bun:test"
 import type { ListedSubject } from "../src/core/listed"
 import { readEnvelope } from "../src/core/observation"
 import { columnLabel, type Column, type Field } from "../src/core/schema"
-import { dayAfter, draftFor, envelopeOf, localDay, needsPosition, newRow, rowAfter } from "../src/web/draft"
+import { dayAfter, draftFor, envelopeOf, localDay, needsPosition, newRow, rowAfter, rowSettled } from "../src/web/draft"
 import { copyrightIn, repositoryPage } from "../src/vite/credits"
 import { clampSize } from "../src/web/frame/resize"
 import { blocksOfMarkdown } from "../src/web/markdown"
@@ -112,6 +112,21 @@ describe("drafts", () => {
     const typed = rowAfter(columns, big, "price", "480")
     expect(rowAfter(columns, typed, "size", "小")).toEqual({ size: "小", price: "480" })
     expect(rowAfter(columns, big, "size", "")).toEqual({ size: "", price: "" })
+  })
+
+  test("a text writes the usual value once it has stood still, never over what was typed, and writes nothing for a text it has nothing for", () => {
+    const columns: readonly Column[] = [
+      { key: "size", label: "大きさ", kind: { type: "text", maxLength: 4 }, required: true, fills: { 大: { price: "500" }, 小: { price: "300" } } },
+      { key: "price", label: "値段", kind: { type: "number" }, required: false },
+    ]
+    const big = rowAfter(columns, {}, "size", "大")
+    expect(big).toEqual({ size: "大" })
+    expect(rowSettled(columns, big, "size")).toEqual({ size: "大", price: "500" })
+    expect(rowSettled(columns, { size: "小", price: "500" }, "size")).toEqual({ size: "小", price: "300" })
+    expect(rowSettled(columns, { size: "小", price: "480" }, "size")).toEqual({ size: "小", price: "480" })
+    const other = { size: "特大", price: "500" }
+    expect(rowSettled(columns, other, "size")).toBe(other)
+    expect(rowSettled(columns, { size: "", price: "500" }, "size")).toEqual({ size: "", price: "500" })
   })
 
   test("a column is called by other words where the row's other column calls for them", () => {

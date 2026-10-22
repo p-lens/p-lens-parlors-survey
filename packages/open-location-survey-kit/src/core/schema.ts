@@ -30,10 +30,12 @@ export interface Column {
    */
   readonly labelBy?: { readonly column: string; readonly labels: Readonly<Record<string, string>> }
   /**
-   * What choosing each of its options writes into other cells of the row,
-   * by their column: the usual value, there to be typed over where the
-   * thing differs. Only a cell left empty, or still holding what another
-   * option wrote, is written.
+   * What each of its values writes into other cells of the row, by their
+   * column: the usual value, there to be typed over where the thing
+   * differs. A choice writes as it is chosen, into a cell left empty or
+   * still holding what another option wrote; a text once the typing has
+   * stood still, into a cell left empty or holding what some value of it
+   * writes, and a text it has nothing for writes nothing.
    */
   readonly fills?: Readonly<Record<string, Readonly<Record<string, string>>>>
   /** The group it is put away with: columns few rows need, out of sight in the form until asked for. A key of the field's `tucks`. */

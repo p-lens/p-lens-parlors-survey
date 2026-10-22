@@ -1,4 +1,4 @@
-import { createSignal, For, Index, Match, Show, Switch, type JSX } from "solid-js"
+import { createEffect, createSignal, For, Index, Match, on, Show, Switch, type JSX } from "solid-js"
 
 import { problemText } from "../core/problem-text"
 import { columnLabel, type Column, type Problem, type Field } from "../core/schema"
@@ -6,7 +6,8 @@ import type { SurveyConfig } from "./config"
 import { Button, Check, CloseButton, FieldBox, FieldGroup, inputClass, TextInput } from "./controls"
 import { OfferedInput } from "./OfferedInput"
 import type { Offers } from "./offered"
-import { dayAfter, emptyValue, newRow, rowAfter, type Draft, type DraftValue, type RowDraft, type SourceDraft } from "./draft"
+import { createDebounced } from "./debounce"
+import { dayAfter, emptyValue, newRow, rowAfter, rowSettled, type Draft, type DraftValue, type RowDraft, type SourceDraft } from "./draft"
 import { Turnstile } from "./Turnstile"
 
 /** Where a report being written stands: being edited, on its way, or refused with what to fix. */
@@ -64,12 +65,18 @@ const cellLabel = (column: Column, row: RowDraft): string => `${columnLabel(colu
 
 type RowsKind = Extract<Field["kind"], { readonly type: "rows" }>
 
-/** One cell of a row under its label. */
-const Cell = (props: { readonly column: Column; readonly row: RowDraft; readonly onChange: (value: string) => void }): JSX.Element => (
-  <FieldBox label={cellLabel(props.column, props.row)}>
-    <FieldInput field={{ ...props.column, amendable: false }} value={props.row[props.column.key] ?? ""} placeholder={props.column.placeholder} onChange={(value) => props.onChange(typeof value === "string" ? value : "")} />
-  </FieldBox>
-)
+/** One cell of a row under its label. A text that fills other cells says when what it holds has stood still. */
+const Cell = (props: { readonly column: Column; readonly row: RowDraft; readonly onChange: (value: string) => void; readonly onSettled: () => void }): JSX.Element => {
+  if (props.column.kind.type === "text" && props.column.fills !== undefined) {
+    const settled = createDebounced(() => props.row[props.column.key] ?? "")
+    createEffect(on(settled, () => props.onSettled(), { defer: true }))
+  }
+  return (
+    <FieldBox label={cellLabel(props.column, props.row)}>
+      <FieldInput field={{ ...props.column, amendable: false }} value={props.row[props.column.key] ?? ""} placeholder={props.column.placeholder} onChange={(value) => props.onChange(typeof value === "string" ? value : "")} />
+    </FieldBox>
+  )
+}
 
 /**
  * A table a person adds rows to. Each row is its columns' cells two
@@ -92,6 +99,10 @@ const RowsInput = (props: {
   const [brought, setBrought] = createSignal<readonly string[]>([])
   const columns = (): readonly Column[] => props.kind.columns
   const setRow = (at: number, changed: RowDraft): void => props.onChange(props.rows.map((row, index) => (index === at ? changed : row)))
+  const settle = (at: number, row: RowDraft, key: string): void => {
+    const settled = rowSettled(columns(), row, key)
+    if (settled !== row) setRow(at, settled)
+  }
   const tuckedIn = (group: string): readonly Column[] => columns().filter((column) => column.tucked === group)
   const out = (at: number, group: string, row: RowDraft): boolean => brought().includes(`${String(at)}:${group}`) || tuckedIn(group).some((column) => (row[column.key] ?? "") !== "")
   const putAway = (at: number, group: string, row: RowDraft): void => {
@@ -105,7 +116,7 @@ const RowsInput = (props: {
           <div class="flex flex-col gap-2 rounded-md border border-border p-2">
             <div class="grid grid-cols-2 gap-2">
               <For each={columns().filter((column) => column.tucked === undefined)}>
-                {(column) => <Cell column={column} row={row()} onChange={(value) => setRow(at, rowAfter(columns(), row(), column.key, value))} />}
+                {(column) => <Cell column={column} row={row()} onChange={(value) => setRow(at, rowAfter(columns(), row(), column.key, value))} onSettled={() => settle(at, row(), column.key)} />}
               </For>
             </div>
             <For each={Object.entries(props.kind.tucks ?? {})}>
@@ -122,7 +133,7 @@ const RowsInput = (props: {
                 >
                   <div class="flex items-end gap-1">
                     <div class="grid min-w-0 flex-1 grid-cols-2 gap-2">
-                      <For each={tuckedIn(group)}>{(column) => <Cell column={column} row={row()} onChange={(value) => setRow(at, rowAfter(columns(), row(), column.key, value))} />}</For>
+                      <For each={tuckedIn(group)}>{(column) => <Cell column={column} row={row()} onChange={(value) => setRow(at, rowAfter(columns(), row(), column.key, value))} onSettled={() => settle(at, row(), column.key)} />}</For>
                     </div>
                     <CloseButton label={words.away} onClick={() => putAway(at, group, row())} />
                   </div>

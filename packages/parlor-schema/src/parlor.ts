@@ -235,6 +235,19 @@ const TIERS: Field = {
 }
 
 /**
+ * What a broker usually pays for a prize by the name parlors most often
+ * give it, written in once the name has stood still, there to be typed
+ * over where the broker pays otherwise. A prize named otherwise writes
+ * nothing.
+ */
+const PRIZE_YEN = {
+  極小: { yen: "100" },
+  小: { yen: "500" },
+  中: { yen: "1000" },
+  大: { yen: "5000" },
+} as const satisfies Readonly<Record<string, Readonly<Record<string, string>>>>
+
+/**
  * A parlor's special prizes as a report states them, a prize of a corner a
  * row. What the parlor takes for a prize is the parlor's; what the broker
  * paid for it is not, and is kept apart (`divideReport`).
@@ -248,10 +261,10 @@ export const PRIZES: Field = {
     maxCount: 24,
     add: "特殊景品ラインナップを追加",
     columns: [
-      { key: "name", label: "景品の名前", kind: { type: "text", maxLength: 10 }, required: true, placeholder: "小、中、大、極小など", initial: "小" },
+      { key: "name", label: "景品の名前", kind: { type: "text", maxLength: 10 }, required: true, placeholder: "小、中、大、極小など", initial: "小", fills: PRIZE_YEN },
       { key: "corner", label: "コーナー", kind: { type: "choice", options: CORNER_OPTIONS, breaks: CORNER_BREAKS }, required: true },
       { key: "tokens", label: "必要な交換数", kind: { type: "number", min: 1, max: MOST_TOKENS }, required: false, labelBy: { column: "corner", labels: wordsByCorner({ pachinko: "必要な玉数", pachislot: "必要なメダル数" }) } },
-      { key: "yen", label: "交換所で受け取った額", kind: { type: "number", min: 1, max: MOST_YEN, unit: "円" }, required: false },
+      { key: "yen", label: "交換所で受け取った額", kind: { type: "number", min: 1, max: MOST_YEN, unit: "円" }, required: false, initial: PRIZE_YEN.小.yen },
     ],
   },
   required: false,

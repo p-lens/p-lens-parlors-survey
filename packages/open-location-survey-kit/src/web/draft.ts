@@ -45,14 +45,31 @@ export const emptyValue = (field: Field): DraftValue => (field.kind.type === "fl
  * cells writes them: the usual value for what was chosen, into a cell left
  * empty or still holding what the choice before wrote — never over what a
  * person typed. Choosing nothing takes back what the choice had written.
+ * A text writes nothing yet (`rowSettled`).
  */
 export const rowAfter = (columns: readonly Column[], row: RowDraft, key: string, value: string): RowDraft => {
-  const fills = columns.find((column) => column.key === key)?.fills
+  const column = columns.find((each) => each.key === key)
+  const fills = column?.kind.type === "choice" ? column.fills : undefined
   if (fills === undefined) return { ...row, [key]: value }
   const before = fills[row[key] ?? ""] ?? {}
   const after = fills[value] ?? {}
   const written = [...new Set([...Object.keys(before), ...Object.keys(after)])].filter((cell) => (row[cell] ?? "") === "" || row[cell] === before[cell])
   return { ...row, [key]: value, ...Object.fromEntries(written.map((cell) => [cell, after[cell] ?? ""] as const)) }
+}
+
+/**
+ * A row once the text in one of its cells has stood still. A text that
+ * fills other cells writes the usual value for what it holds into a cell
+ * left empty or holding what some value of the text writes there — never
+ * over what a person typed. A text it has nothing for leaves the row as it
+ * is.
+ */
+export const rowSettled = (columns: readonly Column[], row: RowDraft, key: string): RowDraft => {
+  const fills = columns.find((column) => column.key === key && column.kind.type === "text")?.fills
+  const after = fills?.[row[key] ?? ""]
+  if (fills === undefined || after === undefined) return row
+  const written = Object.keys(after).filter((cell) => (row[cell] ?? "") === "" || Object.values(fills).some((fill) => fill[cell] === row[cell]))
+  return written.every((cell) => row[cell] === after[cell]) ? row : { ...row, ...Object.fromEntries(written.map((cell) => [cell, after[cell] ?? ""] as const)) }
 }
 
 /** A row as it is added to a table: each cell that has one holding its column's initial value. */
