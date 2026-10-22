@@ -1,26 +1,8 @@
-import { createEffect, createMemo, createSignal, createUniqueId, For, on, onCleanup, Show, type Accessor, type JSX } from "solid-js"
+import { createMemo, createSignal, createUniqueId, For, Show, type JSX } from "solid-js"
 
 import { inputClass } from "./controls"
+import { createDebounced } from "./debounce"
 import { narrowOffered } from "./offered"
-
-/** How long what is typed stands still before the list follows it, in milliseconds. */
-const DEBOUNCE_FOR = 300
-
-/** A value that follows another only once that other has stood still: typing 全国 passes through 全, and nothing worth looking up stands there. */
-const createDebounced = <T,>(source: Accessor<T>): Accessor<T> => {
-  const [value, setValue] = createSignal<T>(source())
-  createEffect(
-    on(
-      source,
-      (next) => {
-        const timer = setTimeout(() => setValue(() => next), DEBOUNCE_FOR)
-        onCleanup(() => clearTimeout(timer))
-      },
-      { defer: true },
-    ),
-  )
-  return value
-}
 
 /** The list under the input: closed, or open with the option the arrow keys are on, if any. */
 type Listing = { readonly type: "closed" } | { readonly type: "open"; readonly at: number | undefined }

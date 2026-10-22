@@ -3,6 +3,7 @@ import { createMemo, createSignal, For, Show, type JSX } from "solid-js"
 import type { ListedSubject } from "../core/listed"
 import type { SurveyConfig } from "./config"
 import { Button, FilterIcon, inputClass, SearchIcon, TextInput } from "./controls"
+import { createDebounced } from "./debounce"
 import type { SurveyList } from "./list"
 import { searchSubjects } from "./search"
 
@@ -34,8 +35,9 @@ const groupField = (config: SurveyConfig): { readonly label: string; readonly op
  * Where a survey starts: what it is for — or, for a person a caller sent,
  * what reporting here does for where they came from — a way to the map around the person
  * and a new report, then search every listed thing, or go through those still
- * waiting for a position. A survey that names a group field has a filter
- * beside the search, which narrows both to one group.
+ * waiting for a position. The search follows what is typed once it has
+ * stood still. A survey that names a group field has a filter beside the
+ * search, which narrows both to one group.
  */
 export const BrowsePanel = (props: {
   readonly config: SurveyConfig
@@ -57,10 +59,11 @@ export const BrowsePanel = (props: {
   }
   const grouping = groupField(props.config)
   const query = (): string => props.query
+  const sought = createDebounced(query)
   const [filter, setFilter] = createSignal<"closed" | "open">("closed")
   const [group, setGroup] = createSignal<string | undefined>()
   const inGroup = (subject: ListedSubject): boolean => group() === undefined || subject.attributes[props.config.groupField ?? ""] === group()
-  const found = createMemo(() => searchSubjects([...props.list.placed, ...props.list.unplaced].filter(inGroup), props.config.schema, query()))
+  const found = createMemo(() => searchSubjects([...props.list.placed, ...props.list.unplaced].filter(inGroup), props.config.schema, sought()))
   const waiting = createMemo(() => props.list.unplaced.filter(inGroup))
   const words = props.config.words.ui
 
@@ -134,7 +137,7 @@ export const BrowsePanel = (props: {
         )}
       </Show>
       <Show
-        when={query().trim() !== ""}
+        when={sought().trim() !== ""}
         fallback={
           <Show when={props.list.unplaced.length > 0}>
             <div class="flex min-h-0 flex-1 flex-col gap-2">
