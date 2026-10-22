@@ -57,7 +57,7 @@ describe("parlorSchema", () => {
   })
 
   test("takes a parlor's corners, each chosen from the corners there are and saying as much as is known, on a new parlor or as a correction", () => {
-    const tiers = [{ corner: "4円パチンコ", rental: 250, replayPaidOut: 125, replayDeducted: 133 }, { corner: "1円パチンコ" }, { corner: "20円スロット", rental: 50 }]
+    const tiers = [{ corner: "4円パチンコ", rental: 250, replayPaidOut: 125, replayDeducted: 133, replayCap: 25000 }, { corner: "1円パチンコ" }, { corner: "20円スロット", rental: 50, replayCap: 5000 }]
     expect(readAttributes(parlorSchema, { ...PARLOR, tiers }, "add")).toMatchObject({ ok: true, value: { tiers } })
     expect(readAttributes(parlorSchema, { tiers }, "amend")).toEqual({ ok: true, value: { tiers } })
   })
@@ -66,6 +66,7 @@ describe("parlorSchema", () => {
     expect(reasons({ tiers: [{ rental: 250 }] }, "amend")).toEqual(["tiers:incomplete-row"])
     expect(reasons({ tiers: [{ corner: "40円スロット" }] }, "amend")).toEqual(["tiers:invalid-row"])
     expect(reasons({ tiers: [{ corner: "4円パチンコ", rental: 250.5 }] }, "amend")).toEqual(["tiers:not-whole"])
+    expect(reasons({ tiers: [{ corner: "20円スロット", replayCap: 2500.5 }] }, "amend")).toEqual(["tiers:not-whole"])
     expect(reasons({ tiers: [{ corner: "4円パチンコ", replayPaidOut: 125 }] }, "amend")).toEqual(["tiers:replay-half"])
     expect(reasons({ tiers: [{ corner: "4円パチンコ" }, { corner: "4円パチンコ", rental: 250 }] }, "amend")).toEqual(["tiers:repeated-tier"])
   })
@@ -79,6 +80,13 @@ describe("parlorSchema", () => {
     const [corner, rental] = (parlorSchema.fields.find((field) => field.key === "tiers")?.kind as { readonly columns: readonly Column[] }).columns
     expect([corner?.fills?.["4円パチンコ"], corner?.fills?.["1円パチンコ"], corner?.fills?.["20円スロット"], corner?.fills?.["5円スロット"], corner?.fills?.["8円スロット"], corner?.fills?.["0.2円パチンコ"]]).toEqual([{ rental: "250" }, { rental: "1000" }, { rental: "50" }, { rental: "200" }, { rental: "125" }, { rental: "5000" }])
     expect(rental === undefined ? [] : [columnLabel(rental, {}), columnLabel(rental, { corner: "4円パチンコ" }), columnLabel(rental, { corner: "20円スロット" })]).toEqual(["貸し数", "貸玉数", "貸メダル数"])
+  })
+
+  test("puts the most a corner replays in a day away apart from the replay's fee, and calls it by the corner's game", () => {
+    const kind = parlorSchema.fields.find((field) => field.key === "tiers")?.kind as { readonly columns: readonly Column[]; readonly tucks: Readonly<Record<string, unknown>> }
+    const cap = kind.columns.find((column) => column.key === "replayCap")
+    expect([cap?.tucked, Object.keys(kind.tucks)]).toEqual(["cap", ["replay", "cap"]])
+    expect(cap === undefined ? [] : [columnLabel(cap, {}), columnLabel(cap, { corner: "4円パチンコ" }), columnLabel(cap, { corner: "20円スロット" })]).toEqual(["再プレイ上限", "再プレイ上限玉数", "再プレイ上限メダル数"])
   })
 
   test("takes a parlor's special prizes a prize of a corner a row: what the parlor takes for each, and what the broker paid, either alone", () => {

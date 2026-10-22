@@ -8,8 +8,8 @@ position for stands, one that has closed, or a name or reading to
 correct.
 A report may also say, where the reporter knows them, a parlor's corners and
 their rates — each corner chosen from the corners there are, 4円パチンコ or
-20円スロット, with what it rents at written in as it is chosen, and what it
-replays at — and its special prizes, each kind with the balls or medals the
+20円スロット, with what it rents at written in as it is chosen, what it
+replays at and the most it replays in a day — and its special prizes, each kind with the balls or medals the
 parlor takes for it and what the broker (特殊景品交換所, the booth that buys
 special prizes) paid the reporter for it, and the broker's name where it has
 one, with a sum or without. It is one report, published apart: the corners, and what each prize
