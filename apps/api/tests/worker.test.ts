@@ -17,7 +17,7 @@ const report = (attributes: Record<string, unknown>) =>
     }),
   })
 
-const PARLOR = { name: "マルハン梅田店", reading: "まるはんうめだてん", prefecture: "大阪府", address: "大阪市北区小松原町4-16" }
+const PARLOR = { name: "マルハン上小田井駅前店", reading: "まるはんかみおたいえきまえてん", prefecture: "大阪府", address: "大阪市北区小松原町4-16" }
 
 describe("survey.p-lens.jp's worker", () => {
   test("judges a report by the parlor schema", async () => {

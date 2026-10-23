@@ -25,7 +25,7 @@ const NAME_CHARACTERS = /^[\p{Script=Han}\p{Script=Katakana}\p{Script=Hiragana}�
 /** The characters an address is written in, read after NFKC: Japanese, latin, digits, dashes and spaces. */
 const ADDRESS_CHARACTERS = /^[\p{Script=Han}\p{Script=Katakana}\p{Script=Hiragana}ー々a-zA-Z0-9\- ]+$/u
 
-const KANJI = /\p{Script=Han}/gu
+const KANJI = /\p{Script=Han}/u
 
 /**
  * A street number as Japanese addresses write one: 1-2-3, 1丁目2番3号,
@@ -41,11 +41,14 @@ const text = (attributes: Attributes, key: string): string | undefined => {
 }
 
 /**
- * Whether a name reads like a parlor's: a place in kanji — a chain is always
- * named with its branch — no long run of hiragana, and latin only in short,
- * pronounceable words, an initial like the D of D'station aside. Strict on
- * purpose: a real parlor refused can be typed again; a sloppy one kept is
- * everyone's problem.
+ * Whether a name reads like a parlor's: a place in kanji, as short as the 柏
+ * of マルハンメガシティ柏, or a branch ending in 店, like KYOICHI ナンバ店 — a
+ * chain is always named with its branch — no long run of hiragana, and latin
+ * only in short, pronounceable words, an initial like the D of D'station
+ * aside. Digits are left out of the placeholder check, as the 2000 of
+ * マルハンメガシティ2000 蒲田 1 is part of a real name. Strict on purpose: a
+ * real parlor refused can be typed again; a sloppy one kept is everyone's
+ * problem.
  */
 const nameProblem = (name: string): Problem | undefined => {
   const plain = name.normalize("NFKC")
@@ -53,9 +56,9 @@ const nameProblem = (name: string): Problem | undefined => {
   if ([...name].length < MIN_NAME) return { field: "name", reason: "too-short" }
   if (!LETTER.test(name)) return { field: "name", reason: "no-letters" }
   if (isForbidden(name, INNOCENT_WORDS)) return { field: "name", reason: "forbidden" }
-  if (looksLikePlaceholder(name, true)) return { field: "name", reason: "placeholder" }
+  if (looksLikePlaceholder(name, false)) return { field: "name", reason: "placeholder" }
   if (!NAME_CHARACTERS.test(plain)) return { field: "name", reason: "strange-characters" }
-  if ((plain.match(KANJI) ?? []).length < 2) return { field: "name", reason: "no-place" }
+  if (!plain.endsWith("店") && !KANJI.test(plain)) return { field: "name", reason: "no-place" }
   if (/\p{Script=Hiragana}{4}/u.test(plain)) return { field: "name", reason: "placeholder" }
   const latin = plain.match(/[a-zA-Z]+/g) ?? []
   return latin.some((word) => word.length > 12 || (word.length > 2 && !/[aeiouy]/i.test(word))) ? { field: "name", reason: "placeholder" } : undefined
@@ -315,8 +318,8 @@ export const parlorSchema: SurveySchema = {
   observations: ["add", "locate", "gone", "amend"],
   observedAhead: HALF_A_YEAR,
   fields: [
-    { key: "name", label: "店名", hint: "チェーン名と支店名まで（例：マルハン梅田店）", kind: { type: "text", maxLength: 30 }, required: true, amendable: true },
-    { key: "reading", label: "よみ", hint: "ひらがなで（例：まるはんうめだてん）", kind: { type: "kana", minLength: 3, maxLength: 40 }, required: true, amendable: true },
+    { key: "name", label: "店名", hint: "チェーン名と支店名まで（例：マルハン上小田井駅前店）", kind: { type: "text", maxLength: 30 }, required: true, amendable: true },
+    { key: "reading", label: "よみ", hint: "ひらがなで（例：まるはんかみおたいえきまえてん）", kind: { type: "kana", minLength: 3, maxLength: 40 }, required: true, amendable: true },
     { key: "prefecture", label: "都道府県", kind: { type: "choice", options: PREFECTURES }, required: true, amendable: false },
     { key: "address", label: "住所", hint: "市区町村から番地まで（例：大阪市北区小松原町4-16）", kind: { type: "text", maxLength: 80 }, required: true, amendable: false },
     { key: "keywords", label: "検索語", hint: "略称などを読点で区切って（例：Dステ、ディーステ）", kind: { type: "words", maxCount: 10, maxLength: 30 }, required: false, amendable: true },
@@ -333,7 +336,7 @@ export const parlorSchema: SurveySchema = {
     placeholder: "がテスト入力のように見えます",
     forbidden: "に使えない言葉が入っています",
     "strange-characters": "に使えない記号が入っています",
-    "no-place": "には地名や支店名まで入れてください（例：マルハン梅田店）",
+    "no-place": "には地名や支店名まで入れてください（例：マルハン上小田井駅前店）",
     "no-municipality": "に市区町村が入っていません",
     "no-number": "に番地が入っていません",
     "other-prefecture": "の都道府県が選んだものと違います",

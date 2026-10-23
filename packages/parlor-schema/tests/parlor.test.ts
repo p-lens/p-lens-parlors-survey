@@ -6,7 +6,7 @@ import type { Submission, SurveyRecord } from "open-location-survey-kit"
 import { divideReport, observationLines } from "../src/broker"
 import { brokerOrder, parlorSchema } from "../src/parlor"
 
-const PARLOR = { name: "マルハン梅田店", reading: "マルハンウメダテン", prefecture: "大阪府", address: "大阪府大阪市北区小松原町4-16", keywords: ["梅田マルハン"] }
+const PARLOR = { name: "マルハン上小田井駅前店", reading: "マルハンカミオタイエキマエテン", prefecture: "大阪府", address: "大阪府大阪市北区小松原町4-16", keywords: ["上小田井マルハン"] }
 
 const reasons = (sent: Record<string, unknown>, kind: "add" | "amend" = "add"): readonly string[] => {
   const read = readAttributes(parlorSchema, sent, kind)
@@ -17,17 +17,20 @@ describe("parlorSchema", () => {
   test("takes a parlor, its reading in hiragana and its address without the prefecture", () => {
     expect(readAttributes(parlorSchema, PARLOR, "add")).toEqual({
       ok: true,
-      value: { name: "マルハン梅田店", reading: "まるはんうめだてん", prefecture: "大阪府", address: "大阪市北区小松原町4-16", keywords: ["梅田マルハン"] },
+      value: { name: "マルハン上小田井駅前店", reading: "まるはんかみおたいえきまえてん", prefecture: "大阪府", address: "大阪市北区小松原町4-16", keywords: ["上小田井マルハン"] },
     })
   })
 
-  test("wants a chain and its branch: a place in kanji", () => {
+  test("wants a chain and its branch: a place in kanji or a branch ending in 店", () => {
     expect(reasons({ ...PARLOR, name: "マルハンです" })).toEqual(["name:no-place"])
+    expect(reasons({ ...PARLOR, name: "マルハンメガシティ柏", reading: "まるはんめがしてぃかしわ", keywords: [] })).toEqual([])
+    expect(reasons({ ...PARLOR, name: "KYOICHI ナンバ店", reading: "きょーいちなんばてん", keywords: ["きょういち"] })).toEqual([])
   })
 
   test("refuses names a book cannot write, test input and vulgar words, but not パチンコ", () => {
     expect(reasons({ ...PARLOR, name: "マルハン:梅田店" })).toEqual(["name:unwritable"])
     expect(reasons({ ...PARLOR, name: "テスト梅田店" })).toEqual(["name:placeholder"])
+    for (const name of ["マルハンメガシティ2000 蒲田 1", "マルハンメガシティ2000 蒲田 7"]) expect([name, reasons({ ...PARLOR, name, reading: "まるはんめがしてぃにせんかまた", keywords: [] })]).toEqual([name, []])
     expect(reasons({ ...PARLOR, name: "うんこ梅田店" })).toEqual(["name:forbidden"])
     expect(reasons({ ...PARLOR, name: "パチンコ大阪本店" })).toEqual([])
   })
@@ -114,7 +117,7 @@ describe("parlorSchema", () => {
 
 const SEEN: Submission["provenance"] = { source: { kind: "on-site" }, observedOn: "2026-10-11", contributor: "0192f0a0-1234-7abc-8def-0123456789ab" }
 
-const SUBJECT = { id: "osm:way/1", name: "マルハン梅田店" }
+const SUBJECT = { id: "osm:way/1", name: "マルハン上小田井駅前店" }
 
 const PRIZES = [
   { name: "小景品", corner: "4円パチンコ", tokens: 280, yen: 1000 },
@@ -126,11 +129,11 @@ const amending = (attributes: Record<string, unknown>): Submission => ({ observa
 
 describe("a parlor's report divided between the parlor and the broker", () => {
   test("keeps with the parlor what it takes for each prize and no yen, and gives the broker the rows that say a sum, with its name", () => {
-    const { here, there } = divideReport(amending({ reading: "まるはんうめだてん", prizes: PRIZES, broker: "大阪景品センター" }))
+    const { here, there } = divideReport(amending({ reading: "まるはんかみおたいえきまえてん", prizes: PRIZES, broker: "大阪景品センター" }))
     expect(here?.observation).toEqual({
       kind: "amend",
       subject: SUBJECT,
-      attributes: { reading: "まるはんうめだてん", prizes: [{ name: "小景品", corner: "4円パチンコ", tokens: 280 }, { name: "大景品", corner: "4円パチンコ", tokens: 1400 }] },
+      attributes: { reading: "まるはんかみおたいえきまえてん", prizes: [{ name: "小景品", corner: "4円パチンコ", tokens: 280 }, { name: "大景品", corner: "4円パチンコ", tokens: 1400 }] },
     } as never)
     expect(there?.observation).toEqual({ kind: "amend", subject: SUBJECT, attributes: { prizes: [PRIZES[0], PRIZES[2]], broker: "大阪景品センター" } } as never)
   })
