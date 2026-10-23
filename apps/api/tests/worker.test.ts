@@ -17,11 +17,11 @@ const report = (attributes: Record<string, unknown>) =>
     }),
   })
 
-const PARLOR = { name: "マルハン上小田井駅前店", reading: "まるはんかみおたいえきまえてん", prefecture: "大阪府", address: "大阪市北区小松原町4-16" }
+const PARLOR = { name: "マルハン上小田井駅前店", reading: "まるはんかみおたいえきまえてん", prefecture: "愛知県", address: "名古屋市西区貴生町68番地" }
 
 describe("survey.p-lens.jp's worker", () => {
   test("judges a report by the parlor schema", async () => {
-    const response = await worker.fetch(report({ ...PARLOR, address: "大阪市北区小松原町" }), UNCONFIGURED)
+    const response = await worker.fetch(report({ ...PARLOR, address: "名古屋市西区貴生町" }), UNCONFIGURED)
     expect(response.status).toBe(422)
     expect((await response.json()) as unknown).toEqual({ type: "invalid", problems: [{ field: "address", reason: "no-number" }] })
   })

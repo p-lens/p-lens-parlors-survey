@@ -91,6 +91,12 @@ export interface Field {
    * it away again is called.
    */
   readonly tuckedBeside?: { readonly field: string; readonly add: string; readonly away: string }
+  /**
+   * In a correction, shown as the list has it under the thing's name and
+   * corrected only when asked for: what the button that brings out the field
+   * says, and what the one that puts it back as the list has it is called.
+   */
+  readonly askedInCorrection?: { readonly ask: string; readonly away: string }
 }
 
 /** Why something a person sent cannot be taken. `field` is a field's key or a part of the submission. */

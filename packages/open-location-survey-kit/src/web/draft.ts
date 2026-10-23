@@ -80,6 +80,9 @@ const sentRow = (columns: readonly Column[], row: RowDraft): Readonly<Record<str
     }),
   )
 
+/** A field's value as the list has it on the thing a report concerns, as the form holds it. */
+export const listedValue = (draft: Draft, field: Field): DraftValue => asDraftValue(draft.subject?.attributes[field.key]) ?? emptyValue(field)
+
 /** A report to start from: a correction begins from what the list says. */
 export const draftFor = (schema: SurveySchema, kind: ObservationKind, subject: ListedSubject | undefined, today: string): Draft => ({
   kind,

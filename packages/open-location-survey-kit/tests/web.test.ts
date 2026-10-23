@@ -3,7 +3,7 @@ import { describe, expect, test } from "bun:test"
 import type { ListedSubject } from "../src/core/listed"
 import { readEnvelope } from "../src/core/observation"
 import { columnLabel, type Column, type Field } from "../src/core/schema"
-import { dayAfter, draftFor, envelopeOf, localDay, needsPosition, newRow, rowAfter, rowSettled } from "../src/web/draft"
+import { dayAfter, draftFor, envelopeOf, listedValue, localDay, needsPosition, newRow, rowAfter, rowSettled } from "../src/web/draft"
 import { copyrightIn, repositoryPage } from "../src/vite/credits"
 import { clampSize } from "../src/web/frame/resize"
 import { blocksOfMarkdown } from "../src/web/markdown"
@@ -65,6 +65,16 @@ describe("drafts", () => {
     expect(draft.values["access"]).toBe("24時間")
     const changed = { ...draft, values: { ...draft.values, access: "営業時間内" } }
     const read = readEnvelope(envelopeOf(aedSchema, changed, CONTRIBUTOR, undefined), JUDGING)
+    expect(read.ok ? read.value.submission.observation : undefined).toEqual({ kind: "amend", subject: { id: "node/1", name: "梅田駅" }, attributes: { access: "営業時間内" } })
+  })
+
+  test("a field put back as the list has it says nothing in a correction", () => {
+    const listed = subject("node/1", "梅田駅", { access: "24時間", tags: ["改札横", "階段下"] })
+    const draft = { ...draftFor(aedSchema, "amend", listed, "2026-10-04"), cc0: true, notCopied: true }
+    const tags = aedSchema.fields.find((field) => field.key === "tags") as Field
+    expect(listedValue(draft, tags)).toBe("改札横、階段下")
+    const putBack = { ...draft, values: { ...draft.values, access: "営業時間内", tags: listedValue(draft, tags) } }
+    const read = readEnvelope(envelopeOf(aedSchema, putBack, CONTRIBUTOR, undefined), JUDGING)
     expect(read.ok ? read.value.submission.observation : undefined).toEqual({ kind: "amend", subject: { id: "node/1", name: "梅田駅" }, attributes: { access: "営業時間内" } })
   })
 

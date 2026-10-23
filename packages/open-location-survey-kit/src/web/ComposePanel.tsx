@@ -8,7 +8,7 @@ import { Button, Check, CloseButton, FieldBox, FieldGroup, inputClass, TextInput
 import { OfferedInput } from "./OfferedInput"
 import type { Offers } from "./offered"
 import { createDebounced } from "./debounce"
-import { dayAfter, emptyValue, newRow, rowAfter, rowSettled, type Draft, type DraftValue, type RowDraft } from "./draft"
+import { dayAfter, emptyValue, listedValue, newRow, rowAfter, rowSettled, type Draft, type DraftValue, type RowDraft } from "./draft"
 import { Turnstile } from "./Turnstile"
 
 /** Where a report being written stands: being edited, on its way, or refused with what to fix. */
@@ -223,6 +223,64 @@ const TableWithBeside = (props: {
 const fieldsFor = (config: SurveyConfig, draft: Draft): readonly Field[] =>
   config.schema.fields.filter((field) => field.kind.type !== "photo" && (draft.kind === "add" || (draft.kind === "amend" && field.amendable)))
 
+/** The correctable fields a correction asks for only when asked to, kept apart from the rest of its form. */
+const askedFields = (config: SurveyConfig, draft: Draft): readonly Field[] =>
+  draft.kind === "amend" ? fieldsFor(config, draft).filter((field) => field.askedInCorrection !== undefined) : []
+
+/** The fields in the order the form shows them: those asked for only when asked to come after the last that is not a table. */
+const formFields = (config: SurveyConfig, draft: Draft): readonly Field[] => {
+  const asked = askedFields(config, draft)
+  const rest = fieldsFor(config, draft).filter((field) => field.tuckedBeside === undefined && !asked.includes(field))
+  const at = rest.findLastIndex((field) => field.kind.type !== "rows") + 1
+  return [...rest.slice(0, at), ...asked, ...rest.slice(at)]
+}
+
+/** A field's value as the list has it, where it is text to show. */
+const listedText = (draft: Draft, field: Field): string | undefined => {
+  const value = listedValue(draft, field)
+  return typeof value === "string" && value !== "" ? value : undefined
+}
+
+/**
+ * A field a correction asks for only when asked to: the button at the right
+ * that brings it out, or the field, shown already where it holds something
+ * else than the list, with the small ✕ that puts it back as the list has it.
+ */
+const AskedField = (props: {
+  readonly field: Field
+  readonly draft: Draft
+  readonly offers: Offers
+  readonly setValue: (key: string, value: DraftValue) => void
+}): JSX.Element => {
+  const [asked, setAsked] = createSignal(false)
+  const out = (): boolean => asked() || JSON.stringify(props.draft.values[props.field.key]) !== JSON.stringify(listedValue(props.draft, props.field))
+  const putBack = (): void => {
+    setAsked(false)
+    props.setValue(props.field.key, listedValue(props.draft, props.field))
+  }
+  return (
+    <Show
+      when={out()}
+      fallback={
+        <div class="flex justify-end">
+          <Button tone="outline" size="compact" onClick={() => setAsked(true)}>
+            {props.field.askedInCorrection?.ask}
+          </Button>
+        </div>
+      }
+    >
+      <div class="flex flex-col gap-1" role="group" aria-label={props.field.label}>
+        <div class="flex items-center justify-between gap-2">
+          <span class="text-xs font-semibold text-text-secondary">{props.field.label}</span>
+          <CloseButton label={props.field.askedInCorrection?.away ?? ""} size="small" onClick={putBack} />
+        </div>
+        <FieldInput field={props.field} value={props.draft.values[props.field.key]} offers={props.offers[props.field.key]} onChange={(value) => props.setValue(props.field.key, value)} />
+        <Show when={props.field.hint}>{(hint) => <span class="text-xs text-text-muted">{hint()}</span>}</Show>
+      </div>
+    </Show>
+  )
+}
+
 const PositionRow = (props: { readonly config: SurveyConfig; readonly draft: Draft; readonly onPlace: () => void }): JSX.Element => {
   const words = props.config.words
   return (
@@ -305,29 +363,35 @@ export const ComposePanel = (props: {
       <div>
         <h2 class="text-lg font-bold text-text-primary">{words.observations[props.draft.kind]}</h2>
         <Show when={props.draft.subject}>{(subject) => <p class="text-sm text-text-secondary">{subject().name}</p>}</Show>
+        <For each={askedFields(props.config, props.draft)}>{(field) => <Show when={listedText(props.draft, field)}>{(text) => <p class="text-sm text-text-secondary">{text()}</p>}</Show>}</For>
       </div>
 
-      <For each={fieldsFor(props.config, props.draft).filter((field) => field.tuckedBeside === undefined)}>
+      <For each={formFields(props.config, props.draft)}>
         {(field) => (
           <Show
-            when={field.kind.type === "rows" ? field.kind : undefined}
-            fallback={
-              <FieldBox label={labelOf(field, props.draft, words.ui.optional)} hint={field.hint}>
-                <FieldInput field={field} value={props.draft.values[field.key]} offers={props.offers[field.key]} onChange={(value) => setValue(field.key, value)} />
-              </FieldBox>
-            }
+            when={field.askedInCorrection === undefined || props.draft.kind !== "amend"}
+            fallback={<AskedField field={field} draft={props.draft} offers={props.offers} setValue={setValue} />}
           >
-            {(kind) => (
-              <TableWithBeside
-                field={field}
-                kind={kind()}
-                beside={fieldsFor(props.config, props.draft).filter((other) => other.tuckedBeside?.field === field.key)}
-                draft={props.draft}
-                words={words}
-                offers={props.offers}
-                setValue={setValue}
-              />
-            )}
+            <Show
+              when={field.kind.type === "rows" ? field.kind : undefined}
+              fallback={
+                <FieldBox label={labelOf(field, props.draft, words.ui.optional)} hint={field.hint}>
+                  <FieldInput field={field} value={props.draft.values[field.key]} offers={props.offers[field.key]} onChange={(value) => setValue(field.key, value)} />
+                </FieldBox>
+              }
+            >
+              {(kind) => (
+                <TableWithBeside
+                  field={field}
+                  kind={kind()}
+                  beside={fieldsFor(props.config, props.draft).filter((other) => other.tuckedBeside?.field === field.key)}
+                  draft={props.draft}
+                  words={words}
+                  offers={props.offers}
+                  setValue={setValue}
+                />
+              )}
+            </Show>
           </Show>
         )}
       </For>

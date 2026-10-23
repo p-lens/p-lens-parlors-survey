@@ -81,15 +81,24 @@ const withoutPrefecture = (address: string): { readonly prefecture: string | und
   return found === undefined ? { prefecture: undefined, rest: address } : { prefecture: found, rest: address.slice(found.length).trim() }
 }
 
-/** Where the municipality ends in an address: a city or a district, or one of Tokyo's wards. */
+/**
+ * Where the municipality ends in an address: a city or a district, or one
+ * of Tokyo's wards where the prefecture is Tokyo or not known, as in a
+ * correction of the address alone.
+ */
 const municipalityEnd = (address: string, prefecture: string | undefined): number => {
   const city = address.search(/[市郡]/)
-  return city !== -1 ? city : prefecture === "東京都" ? address.search(/区/) : -1
+  return city !== -1 ? city : prefecture === "東京都" || prefecture === undefined ? address.search(/区/) : -1
 }
 
 const plainAddress = (address: string): string => address.normalize("NFKC").replace(/[‐-―−ーｰ]/g, (dash) => (dash === "ー" ? dash : "-"))
 
-/** An address down to the street number, in the prefecture chosen, or why not. Kept without the prefecture it may begin with. */
+/**
+ * An address down to the street number, in the prefecture chosen, or why
+ * not. Kept without the prefecture it may begin with where one was chosen;
+ * a correction of the address alone chooses none, so it is kept as typed for
+ * a maintainer to set beside the parlor's own.
+ */
 const addressOf = (address: string, prefecture: string | undefined): Result<string, Problem> => {
   const leading = withoutPrefecture(address)
   if (leading.prefecture !== undefined && prefecture !== undefined && leading.prefecture !== prefecture) return Err({ field: "address", reason: "other-prefecture" })
@@ -98,9 +107,10 @@ const addressOf = (address: string, prefecture: string | undefined): Result<stri
   if (!ADDRESS_CHARACTERS.test(plain)) return Err({ field: "address", reason: "strange-characters" })
   if (isForbidden(plain)) return Err({ field: "address", reason: "forbidden" })
   if (looksLikePlaceholder(plain, false)) return Err({ field: "address", reason: "placeholder" })
-  const end = municipalityEnd(plain, prefecture)
+  const end = municipalityEnd(plain, prefecture ?? leading.prefecture)
   if (end === -1) return Err({ field: "address", reason: "no-municipality" })
-  return STREET_NUMBER.test(plain.slice(end + 1)) ? Ok(leading.rest) : Err({ field: "address", reason: "no-number" })
+  if (!STREET_NUMBER.test(plain.slice(end + 1))) return Err({ field: "address", reason: "no-number" })
+  return Ok(prefecture === undefined ? address : leading.rest)
 }
 
 /** The counts a report states: balls or medals, and the yen a broker paid — whole and above zero. */
@@ -321,7 +331,15 @@ export const parlorSchema: SurveySchema = {
     { key: "name", label: "店名", hint: "チェーン名と支店名まで（例：マルハン上小田井駅前店）", kind: { type: "text", maxLength: 30 }, required: true, amendable: true },
     { key: "reading", label: "よみ", hint: "ひらがなで（例：まるはんかみおたいえきまえてん）", kind: { type: "kana", minLength: 3, maxLength: 40 }, required: true, amendable: true },
     { key: "prefecture", label: "都道府県", kind: { type: "choice", options: PREFECTURES }, required: true, amendable: false },
-    { key: "address", label: "住所", hint: "市区町村から番地まで（例：大阪市北区小松原町4-16）", kind: { type: "text", maxLength: 80 }, required: true, amendable: false },
+    {
+      key: "address",
+      label: "住所",
+      hint: "市区町村から番地まで（例：名古屋市西区貴生町68番地）",
+      kind: { type: "text", maxLength: 80 },
+      required: true,
+      amendable: true,
+      askedInCorrection: { ask: "住所の変更報告", away: "住所の変更をやめる" },
+    },
     { key: "keywords", label: "検索語", hint: "略称などを読点で区切って（例：Dステ、ディーステ）", kind: { type: "words", maxCount: 10, maxLength: 30 }, required: false, amendable: true },
     TIERS,
     PRIZES,

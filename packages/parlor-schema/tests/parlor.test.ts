@@ -6,7 +6,7 @@ import type { Submission, SurveyRecord } from "open-location-survey-kit"
 import { divideReport, observationLines } from "../src/broker"
 import { brokerOrder, parlorSchema } from "../src/parlor"
 
-const PARLOR = { name: "マルハン上小田井駅前店", reading: "マルハンカミオタイエキマエテン", prefecture: "大阪府", address: "大阪府大阪市北区小松原町4-16", keywords: ["上小田井マルハン"] }
+const PARLOR = { name: "マルハン上小田井駅前店", reading: "マルハンカミオタイエキマエテン", prefecture: "愛知県", address: "愛知県名古屋市西区貴生町68番地", keywords: ["上小田井マルハン"] }
 
 const reasons = (sent: Record<string, unknown>, kind: "add" | "amend" = "add"): readonly string[] => {
   const read = readAttributes(parlorSchema, sent, kind)
@@ -17,7 +17,7 @@ describe("parlorSchema", () => {
   test("takes a parlor, its reading in hiragana and its address without the prefecture", () => {
     expect(readAttributes(parlorSchema, PARLOR, "add")).toEqual({
       ok: true,
-      value: { name: "マルハン上小田井駅前店", reading: "まるはんかみおたいえきまえてん", prefecture: "大阪府", address: "大阪市北区小松原町4-16", keywords: ["上小田井マルハン"] },
+      value: { name: "マルハン上小田井駅前店", reading: "まるはんかみおたいえきまえてん", prefecture: "愛知県", address: "名古屋市西区貴生町68番地", keywords: ["上小田井マルハン"] },
     })
   })
 
@@ -36,8 +36,8 @@ describe("parlorSchema", () => {
   })
 
   test("wants an address down to the municipality and the street number, in the prefecture chosen", () => {
-    expect(reasons({ ...PARLOR, address: "北区小松原町4-16" })).toEqual(["address:no-municipality"])
-    expect(reasons({ ...PARLOR, address: "大阪市北区小松原町" })).toEqual(["address:no-number"])
+    expect(reasons({ ...PARLOR, address: "西区貴生町68番地" })).toEqual(["address:no-municipality"])
+    expect(reasons({ ...PARLOR, address: "名古屋市西区貴生町" })).toEqual(["address:no-number"])
     expect(reasons({ ...PARLOR, address: "兵庫県神戸市中央区三宮町1-1-1" })).toEqual(["address:other-prefecture"])
     expect(reasons({ ...PARLOR, prefecture: "東京都", address: "新宿区歌舞伎町1-2-3" })).toEqual([])
   })
@@ -46,9 +46,16 @@ describe("parlorSchema", () => {
     expect(reasons({ ...PARLOR, prefecture: "大阪" })).toEqual(["prefecture:not-a-choice"])
   })
 
-  test("a correction may fix the name, reading or search words, never where it is", () => {
-    expect(readAttributes(parlorSchema, { reading: "ミリオンツノミネテン", address: "どこか1-1" }, "amend")).toEqual({ ok: true, value: { reading: "みりおんつのみねてん" } })
+  test("a correction may fix the name, reading, search words or address, never the prefecture", () => {
+    expect(readAttributes(parlorSchema, { reading: "ミリオンツノミネテン", prefecture: "東京都" }, "amend")).toEqual({ ok: true, value: { reading: "みりおんつのみねてん" } })
     expect(reasons({ reading: "あいうえお" }, "amend")).toEqual(["reading:placeholder"])
+  })
+
+  test("a correction of the address alone wants it down to the street number, and keeps it as typed", () => {
+    expect(readAttributes(parlorSchema, { address: "愛知県名古屋市西区貴生町68番地" }, "amend")).toEqual({ ok: true, value: { address: "愛知県名古屋市西区貴生町68番地" } })
+    expect(readAttributes(parlorSchema, { address: "新宿区歌舞伎町1-2-3" }, "amend")).toEqual({ ok: true, value: { address: "新宿区歌舞伎町1-2-3" } })
+    expect(reasons({ address: "上小田井貴生町68番地" }, "amend")).toEqual(["address:no-municipality"])
+    expect(reasons({ address: "名古屋市西区貴生町" }, "amend")).toEqual(["address:no-number"])
   })
 
   test("takes two names as one whatever their widths, case, spaces and marks, as app.p-lens.jp does", () => {
