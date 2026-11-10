@@ -48,6 +48,26 @@ const FieldInput = (props: {
       <Match when={props.field.kind.type === "flag"}>
         <input type="checkbox" class="h-4 w-4 accent-accent" checked={props.value === true} onChange={(event) => props.onChange(event.currentTarget.checked)} />
       </Match>
+      <Match when={props.field.kind.type === "number" && props.field.kind.unbounded !== undefined ? props.field.kind.unbounded : undefined}>
+        {(unbounded) => (
+          <div class="grid grid-cols-2 items-center gap-2">
+            <TextInput
+              type="number"
+              inputMode="decimal"
+              min={props.field.kind.type === "number" ? props.field.kind.min : undefined}
+              max={props.field.kind.type === "number" ? props.field.kind.max : undefined}
+              placeholder={props.placeholder}
+              aria-label={props.field.label}
+              disabled={text() === unbounded()}
+              value={text() === unbounded() ? "" : text()}
+              onInput={(event) => props.onChange(event.currentTarget.value)}
+            />
+            <Check checked={text() === unbounded()} onChange={(checked) => props.onChange(checked ? unbounded() : "")}>
+              {unbounded()}
+            </Check>
+          </div>
+        )}
+      </Match>
       <Match when={props.field.kind.type === "number" ? props.field.kind : undefined}>
         {(kind) => <TextInput type="number" inputMode="decimal" min={kind().min} max={kind().max} placeholder={props.placeholder} value={text()} onInput={(event) => props.onChange(event.currentTarget.value)} />}
       </Match>
@@ -61,21 +81,35 @@ const FieldInput = (props: {
   )
 }
 
+/** Whether a field's input is a number with a box beside it for a thing with no bound: two inputs, so not under one `label`. */
+const isUnbounded = (kind: Field["kind"]): boolean => kind.type === "number" && kind.unbounded !== undefined
+
+/** A field's input under its label: one input named by a `label`, or a number and its box for no bound named as a group. */
+const LabelledInput = (props: { readonly kind: Field["kind"]; readonly label: string; readonly hint?: string | undefined; readonly children: JSX.Element }): JSX.Element => (
+  <Show when={isUnbounded(props.kind)} fallback={<FieldBox label={props.label} hint={props.hint}>{props.children}</FieldBox>}>
+    <FieldGroup label={props.label} hint={props.hint}>
+      {props.children}
+    </FieldGroup>
+  </Show>
+)
+
 /** A column's label over its cell in one row, with its unit. */
 const cellLabel = (column: Column, row: RowDraft): string => `${columnLabel(column, row)}${column.kind.type === "number" && column.kind.unit !== undefined ? `（${column.kind.unit}）` : ""}`
 
 type RowsKind = Extract<Field["kind"], { readonly type: "rows" }>
 
-/** One cell of a row under its label. A text that fills other cells says when what it holds has stood still. */
+/** One cell of a row under its label, a number with a box for no bound across the row. A text that fills other cells says when what it holds has stood still. */
 const Cell = (props: { readonly column: Column; readonly row: RowDraft; readonly onChange: (value: string) => void; readonly onSettled: () => void }): JSX.Element => {
   if (props.column.kind.type === "text" && props.column.fills !== undefined) {
     const settled = createDebounced(() => props.row[props.column.key] ?? "")
     createEffect(on(settled, () => props.onSettled(), { defer: true }))
   }
   return (
-    <FieldBox label={cellLabel(props.column, props.row)}>
-      <FieldInput field={{ ...props.column, amendable: false }} value={props.row[props.column.key] ?? ""} placeholder={props.column.placeholder} onChange={(value) => props.onChange(typeof value === "string" ? value : "")} />
-    </FieldBox>
+    <div class={isUnbounded(props.column.kind) ? "col-span-2" : ""}>
+      <LabelledInput kind={props.column.kind} label={cellLabel(props.column, props.row)}>
+        <FieldInput field={{ ...props.column, label: cellLabel(props.column, props.row), amendable: false }} value={props.row[props.column.key] ?? ""} placeholder={props.column.placeholder} onChange={(value) => props.onChange(typeof value === "string" ? value : "")} />
+      </LabelledInput>
+    </div>
   )
 }
 
@@ -375,9 +409,9 @@ export const ComposePanel = (props: {
             <Show
               when={field.kind.type === "rows" ? field.kind : undefined}
               fallback={
-                <FieldBox label={labelOf(field, props.draft, words.ui.optional)} hint={field.hint}>
+                <LabelledInput kind={field.kind} label={labelOf(field, props.draft, words.ui.optional)} hint={field.hint}>
                   <FieldInput field={field} value={props.draft.values[field.key]} offers={props.offers[field.key]} onChange={(value) => setValue(field.key, value)} />
-                </FieldBox>
+                </LabelledInput>
               }
             >
               {(kind) => (

@@ -58,7 +58,8 @@ export const aedSchema: SurveySchema = {
 ```
 
 Field kinds: `text`, `kana` (a reading, kept in hiragana), `choice`, `words`,
-`number`, `flag`, `rows` (a table rows are added to, every row the same
+`number` (with `unbounded`, a box beside it whose words — 上限なし — stand in
+for the number where a thing has no bound), `flag`, `rows` (a table rows are added to, every row the same
 columns, each a `text`, a `choice` or a `number`), and `photo` — declarable now, refused until the kit has
 somewhere to keep photos.
 

@@ -51,6 +51,19 @@ describe("readAttributes", () => {
     expect(readAttributes(schema, { hours: [{}] }, "amend")).toEqual({ ok: false, error: [{ field: "attributes", reason: "required" }] })
   })
 
+  test("takes a number's words for no bound in place of the number, and no other words", () => {
+    const hours: Field = {
+      key: "hours",
+      label: "開いている時間",
+      kind: { type: "rows", maxCount: 2, columns: [{ key: "day", label: "曜日", kind: { type: "choice", options: ["平日", "休日"] }, required: true }, { key: "until", label: "何時まで", kind: { type: "number", min: 0, max: 24, unbounded: "閉まらない" }, required: false }] },
+      required: false,
+      amendable: true,
+    }
+    const schema = { ...aedSchema, fields: [...aedSchema.fields, hours] }
+    expect(readAttributes(schema, { hours: [{ day: "平日", until: "閉まらない" }, { day: "休日", until: 22 }] }, "amend")).toEqual({ ok: true, value: { hours: [{ day: "平日", until: "閉まらない" }, { day: "休日", until: 22 }] } })
+    expect(readAttributes(schema, { hours: [{ day: "平日", until: "ずっと" }] }, "amend")).toEqual({ ok: false, error: [{ field: "hours", reason: "invalid-row" }] })
+  })
+
   test("runs the schema's own rules last, which may settle values", () => {
     const strict = { ...aedSchema, refine: () => ({ ok: false as const, error: [{ field: "name", reason: "no-station" }] }) }
     expect(readAttributes(strict, ADD.attributes, "add")).toEqual({ ok: false, error: [{ field: "name", reason: "no-station" }] })

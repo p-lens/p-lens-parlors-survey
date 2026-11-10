@@ -72,6 +72,13 @@ describe("parlorSchema", () => {
     expect(readAttributes(parlorSchema, { tiers }, "amend")).toEqual({ ok: true, value: { tiers } })
   })
 
+  test("takes a corner that lets a member replay as much as they like as 上限なし in place of a count, and no other words", () => {
+    const tiers = [{ corner: "4円パチンコ", replayCap: "上限なし" }]
+    expect(readAttributes(parlorSchema, { tiers }, "amend")).toEqual({ ok: true, value: { tiers } })
+    expect(reasons({ tiers: [{ corner: "4円パチンコ", replayCap: "無制限" }] }, "amend")).toEqual(["tiers:invalid-row"])
+    expect(reasons({ tiers: [{ corner: "4円パチンコ", rental: "上限なし" }] }, "amend")).toEqual(["tiers:invalid-row"])
+  })
+
   test("refuses corners that do not read as corners: none chosen, one there is not, a count not whole, half a replay, one corner twice", () => {
     expect(reasons({ tiers: [{ rental: 250 }] }, "amend")).toEqual(["tiers:incomplete-row"])
     expect(reasons({ tiers: [{ corner: "40円スロット" }] }, "amend")).toEqual(["tiers:invalid-row"])

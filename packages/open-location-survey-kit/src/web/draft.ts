@@ -71,12 +71,15 @@ export const newRow = (columns: readonly Column[]): RowDraft => Object.fromEntri
 /** Whether a row holds no more than it was added with: nothing typed, or only what its columns start with. */
 const untouched = (columns: readonly Column[], row: RowDraft): boolean => columns.every((column) => (row[column.key] ?? "").trim() === (column.initial ?? ""))
 
+/** What was typed for a number as it is sent: a number, or the words of its ticked box for a thing with no bound. */
+const sentNumber = (kind: Extract<Field["kind"], { readonly type: "number" }>, text: string): number | string => (text === kind.unbounded ? text : Number(text))
+
 /** A row of the form as it is sent: each cell by its column's kind, an empty cell saying nothing. */
 const sentRow = (columns: readonly Column[], row: RowDraft): Readonly<Record<string, unknown>> =>
   Object.fromEntries(
     columns.flatMap((column) => {
       const text = (row[column.key] ?? "").trim()
-      return text === "" ? [] : [[column.key, column.kind.type === "number" ? Number(text) : text] as const]
+      return text === "" ? [] : [[column.key, column.kind.type === "number" ? sentNumber(column.kind, text) : text] as const]
     }),
   )
 
@@ -114,7 +117,7 @@ const sentValue = (field: Field, value: DraftValue | undefined): unknown => {
     case "words":
       return text.split(/[,、]/).map((word) => word.trim()).filter((word) => word !== "")
     case "number":
-      return Number(text)
+      return sentNumber(field.kind, text)
     case "text":
     case "kana":
     case "choice":

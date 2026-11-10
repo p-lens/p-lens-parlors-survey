@@ -113,6 +113,9 @@ const addressOf = (address: string, prefecture: string | undefined): Result<stri
   return Ok(prefecture === undefined ? address : leading.rest)
 }
 
+/** What a corner that lets a member replay as much as they like holds for its most replayed in a day, in place of a count. */
+const NO_REPLAY_CAP = "上限なし"
+
 /** The counts a report states: balls or medals, and the yen a broker paid — whole and above zero. */
 const COUNTS = ["rental", "replayPaidOut", "replayDeducted", "replayCap", "tokens", "yen"] as const
 
@@ -131,7 +134,7 @@ const prizeKey = (row: Row): string => `${tierKey(row)}:${String(row["name"])}`
  * corner entered twice.
  */
 const prizesProblem = (rows: readonly Row[]): Problem | undefined => {
-  if (rows.some((row) => COUNTS.some((count) => row[count] !== undefined && !Number.isInteger(row[count])))) return { field: "prizes", reason: "not-whole" }
+  if (rows.some((row) => COUNTS.some((count) => typeof row[count] === "number" && !Number.isInteger(row[count])))) return { field: "prizes", reason: "not-whole" }
   if (rows.some((row) => row["tokens"] === undefined && row["yen"] === undefined)) return { field: "prizes", reason: "prize-says-nothing" }
   return new Set(rows.map(prizeKey)).size < rows.length ? { field: "prizes", reason: "repeated-prize" } : undefined
 }
@@ -143,7 +146,7 @@ const prizesProblem = (rows: readonly Row[]): Problem | undefined => {
  * that it is there.
  */
 const tiersProblem = (rows: readonly Row[]): Problem | undefined => {
-  if (rows.some((row) => COUNTS.some((count) => row[count] !== undefined && !Number.isInteger(row[count])))) return { field: "tiers", reason: "not-whole" }
+  if (rows.some((row) => COUNTS.some((count) => typeof row[count] === "number" && !Number.isInteger(row[count])))) return { field: "tiers", reason: "not-whole" }
   if (rows.some((row) => (row["replayPaidOut"] === undefined) !== (row["replayDeducted"] === undefined))) return { field: "tiers", reason: "replay-half" }
   return new Set(rows.map(tierKey)).size < rows.length ? { field: "tiers", reason: "repeated-tier" } : undefined
 }
@@ -240,7 +243,7 @@ const TIERS: Field = {
       { key: "rental", label: "貸し数", kind: { type: "number", min: 1, max: MOST_TOKENS }, required: false, labelBy: { column: "corner", labels: wordsByCorner({ pachinko: "貸玉数", pachislot: "貸メダル数" }) } },
       { key: "replayPaidOut", label: "再プレイ払出", kind: { type: "number", min: 1, max: MOST_TOKENS }, required: false, tucked: "replay" },
       { key: "replayDeducted", label: "再プレイ減数", kind: { type: "number", min: 1, max: MOST_TOKENS }, required: false, tucked: "replay" },
-      { key: "replayCap", label: "再プレイ上限", kind: { type: "number", min: 1, max: MOST_TOKENS }, required: false, tucked: "cap", labelBy: { column: "corner", labels: wordsByCorner({ pachinko: "再プレイ上限玉数", pachislot: "再プレイ上限メダル数" }) } },
+      { key: "replayCap", label: "再プレイ上限", kind: { type: "number", min: 1, max: MOST_TOKENS, unbounded: NO_REPLAY_CAP }, required: false, tucked: "cap", labelBy: { column: "corner", labels: wordsByCorner({ pachinko: "再プレイ上限玉数", pachislot: "再プレイ上限メダル数" }) } },
     ],
   },
   required: false,

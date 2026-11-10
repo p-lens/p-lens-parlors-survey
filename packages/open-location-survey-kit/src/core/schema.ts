@@ -62,7 +62,14 @@ export type FieldKind =
       readonly breaks?: readonly number[]
     }
   | { readonly type: "words"; readonly maxCount: number; readonly maxLength: number }
-  | { readonly type: "number"; readonly min?: number; readonly max?: number; readonly unit?: string }
+  | {
+      readonly type: "number"
+      readonly min?: number
+      readonly max?: number
+      readonly unit?: string
+      /** What a box beside the number says, ticked for a thing that has no bound — 上限なし — kept as these words in place of a number. */
+      readonly unbounded?: string
+    }
   | { readonly type: "flag" }
   | {
       readonly type: "rows"
@@ -205,6 +212,7 @@ const valueOf = (field: Field, sent: unknown): Result<AttributeValue, Problem> =
       return words.some((word) => lengthOf(word) > kind.maxLength) ? Err({ field: key, reason: "too-long" }) : Ok(words)
     }
     case "number": {
+      if (kind.unbounded !== undefined && sent === kind.unbounded) return Ok(kind.unbounded)
       const number = typeof sent === "number" ? sent : Number.NaN
       if (!Number.isFinite(number)) return Err({ field: key, reason: "invalid" })
       return (kind.min !== undefined && number < kind.min) || (kind.max !== undefined && number > kind.max) ? Err({ field: key, reason: "out-of-range" }) : Ok(number)
