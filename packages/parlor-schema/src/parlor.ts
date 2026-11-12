@@ -116,6 +116,13 @@ const addressOf = (address: string, prefecture: string | undefined): Result<stri
 /** What a corner that lets a member replay as much as they like holds for its most replayed in a day, in place of a count. */
 const NO_REPLAY_CAP = "上限なし"
 
+/**
+ * Whether a corner lets a member share the balls or medals they hold with a
+ * companion, dividing them onto the companion's card (持玉共有, or 持玉分割):
+ * a parlor's board says it can or cannot, and a reporter seldom knows more.
+ */
+const SHARE_OPTIONS = ["できる", "できない"]
+
 /** The counts a report states: balls or medals, and the yen a broker paid — whole and above zero. */
 const COUNTS = ["rental", "replayPaidOut", "replayDeducted", "replayCap", "tokens", "yen"] as const
 
@@ -226,24 +233,26 @@ const CORNER_OPTIONS = CORNERS.map((corner) => corner.label)
  * the corners there are, with what ¥1,000 rents — written in as the corner
  * is chosen, since most parlors rent as the corner usually does, and typed
  * over where the parlor rents otherwise. Few corners take a fee on a replay,
- * so its two counts are put away until asked for, and so is the most a
- * member may replay in a day, which a reporter seldom knows.
+ * so its two counts are put away until asked for, and so are the most a
+ * member may replay in a day and whether they may share what they hold
+ * with a companion, which a reporter seldom knows.
  */
 const TIERS: Field = {
   key: "tiers",
   label: "コーナーとレート",
-  hint: "分かるコーナーだけで構いません。貸し数は 1,000 円あたりで、ふつうの数が入ります。違うときだけ直してください。再プレイ上限は 1 日に再プレイできる数です。これから変わると掲示されている内容なら、下の「確認した日」に変わる日（半年先まで）を入れてください",
+  hint: "分かるコーナーだけで構いません。貸し数は 1,000 円あたりで、ふつうの数が入ります。違うときだけ直してください。再プレイ上限は 1 日に再プレイできる数です。持玉共有（分割）は、連れの人と持玉を分け合えるかです。これから変わると掲示されている内容なら、下の「確認した日」に変わる日（半年先まで）を入れてください",
   kind: {
     type: "rows",
     maxCount: CORNERS.length,
     add: "レート・コーナーを追加",
-    tucks: { replay: { add: "再プレイ手数料を追加", away: "再プレイ手数料をやめる" }, cap: { add: "再プレイ上限を追加", away: "再プレイ上限をやめる" } },
+    tucks: { replay: { add: "再プレイ手数料を追加", away: "再プレイ手数料をやめる" }, cap: { add: "再プレイ上限を追加", away: "再プレイ上限をやめる" }, share: { add: "持玉共有（分割）を追加", away: "持玉共有（分割）をやめる" } },
     columns: [
       { key: "corner", label: "コーナー", kind: { type: "choice", options: CORNER_OPTIONS, breaks: CORNER_BREAKS }, required: true, fills: Object.fromEntries(CORNERS.map((corner) => [corner.label, { rental: String(corner.rental) }] as const)) },
       { key: "rental", label: "貸し数", kind: { type: "number", min: 1, max: MOST_TOKENS }, required: false, labelBy: { column: "corner", labels: wordsByCorner({ pachinko: "貸玉数", pachislot: "貸メダル数" }) } },
       { key: "replayPaidOut", label: "再プレイ払出", kind: { type: "number", min: 1, max: MOST_TOKENS }, required: false, tucked: "replay" },
       { key: "replayDeducted", label: "再プレイ減数", kind: { type: "number", min: 1, max: MOST_TOKENS }, required: false, tucked: "replay" },
       { key: "replayCap", label: "再プレイ上限", kind: { type: "number", min: 1, max: MOST_TOKENS, unbounded: NO_REPLAY_CAP }, required: false, tucked: "cap", labelBy: { column: "corner", labels: wordsByCorner({ pachinko: "再プレイ上限玉数", pachislot: "再プレイ上限メダル数" }) } },
+      { key: "share", label: "持玉共有（分割）", kind: { type: "choice", options: SHARE_OPTIONS }, required: false, tucked: "share" },
     ],
   },
   required: false,

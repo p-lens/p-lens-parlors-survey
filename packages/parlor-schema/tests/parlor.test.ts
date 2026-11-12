@@ -102,8 +102,16 @@ describe("parlorSchema", () => {
   test("puts the most a corner replays in a day away apart from the replay's fee, and calls it by the corner's game", () => {
     const kind = parlorSchema.fields.find((field) => field.key === "tiers")?.kind as { readonly columns: readonly Column[]; readonly tucks: Readonly<Record<string, unknown>> }
     const cap = kind.columns.find((column) => column.key === "replayCap")
-    expect([cap?.tucked, Object.keys(kind.tucks)]).toEqual(["cap", ["replay", "cap"]])
+    expect([cap?.tucked, Object.keys(kind.tucks)]).toEqual(["cap", ["replay", "cap", "share"]])
     expect(cap === undefined ? [] : [columnLabel(cap, {}), columnLabel(cap, { corner: "4円パチンコ" }), columnLabel(cap, { corner: "20円スロット" })]).toEqual(["再プレイ上限", "再プレイ上限玉数", "再プレイ上限メダル数"])
+  })
+
+  test("takes whether a corner lets a member share their balls or medals with a companion as できる or できない, put away until asked for, and no other words", () => {
+    const tiers = [{ corner: "4円パチンコ", share: "できる" }, { corner: "20円スロット", share: "できない" }]
+    expect(readAttributes(parlorSchema, { tiers }, "amend")).toEqual({ ok: true, value: { tiers } })
+    expect(reasons({ tiers: [{ corner: "4円パチンコ", share: "島のみ" }] }, "amend")).toEqual(["tiers:invalid-row"])
+    const kind = parlorSchema.fields.find((field) => field.key === "tiers")?.kind as { readonly columns: readonly Column[] }
+    expect(kind.columns.find((column) => column.key === "share")?.tucked).toBe("share")
   })
 
   test("starts a prize empty, a sum being only what a reporter received, and writes in what a broker usually pays for 極小, 小, 中 and 大 once it is named", () => {

@@ -9,7 +9,8 @@ correct.
 A report may also say, where the reporter knows them, a parlor's corners and
 their rates — each corner chosen from the corners there are, 4円パチンコ or
 20円スロット, with what it rents at written in as it is chosen, what it
-replays at and the most it replays in a day — and its special prizes, each kind with the balls or medals the
+replays at, the most it replays in a day and whether a member may share their
+balls or medals with a companion — and its special prizes, each kind with the balls or medals the
 parlor takes for it and what the broker (特殊景品交換所, the booth that buys
 special prizes) paid the reporter for it — written in from the prize's name,
 100 for 極小, 500 for 小, 1000 for 中 and 5000 for 大, and typed over where the
